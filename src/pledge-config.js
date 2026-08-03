@@ -1,28 +1,50 @@
-// Keep the school's published 2026 amounts here so they can be reviewed without
+// Keep the school's published pledge amounts here so they can be reviewed without
 // having to change the form rendering code.
+
+export const money = (amount) => `$${Number(amount || 0).toLocaleString('en-NZ', { minimumFractionDigits: 2 })}`;
+
+// Editable base price and discount schedule. Recommended amounts are calculated from these.
+const baseAmount = 4100;
+const schoolDiscountSchedule = [0, 0.20, 0.20, 1, 1]; // fraction off full price for child 1..5
+const kindergartenDaysPerWeek = 5;
+
+const schoolRecommendedByChild = schoolDiscountSchedule.map((discount) =>
+  Math.round(baseAmount * (1 - discount))
+);
+
+const kindergartenDailyRate = baseAmount / kindergartenDaysPerWeek;
+const kindergartenRecommendedByDays = {
+  5: Math.round(kindergartenDailyRate * 5),
+  3: Math.round(kindergartenDailyRate * 3),
+  2: Math.round(kindergartenDailyRate * 2),
+};
+
 export const pledgeRules = {
-  maxChildrenPerGroup: 10,
+  year: 2027,
+  maxChildrenPerGroup: 5,
   termsPerYear: 4,
-  weeksPerTerm: 10,
+  weeksPerYear: 52,
+  baseAmount,
   school: {
+    discountSchedule: schoolDiscountSchedule,
     options: [
-      { label: 'Standard amount', amount: 4100 },
-      { label: 'Second-child amount', amount: 4000 },
-      { label: '20% less', amount: 3280 },
-      { label: '40% less', amount: 2460 },
+      { label: 'Full amount', amount: schoolRecommendedByChild[0] },
+      { label: '20% less', amount: schoolRecommendedByChild[1] },
+      { label: 'Free', amount: schoolRecommendedByChild[3] },
     ],
-    note: 'The school booklet lists $4,100 for the first child, $4,000 / $3,280 for the second child, and $4,000 / $2,460 for the third child. Select the agreed amount for each child.',
-    recommendedByChild: [4100, 4000, 2460],
+    note: `Full price is ${money(baseAmount)} for the first child. The second and third children are 20% less, and the fourth and fifth children are free.`,
+    recommendedByChild: schoolRecommendedByChild,
   },
   kindergarten: {
-    recommendedByDays: { 5: 4100, 3: 2460, 2: 1640 },
+    dailyRate: kindergartenDailyRate,
+    daysPerWeek: kindergartenDaysPerWeek,
     options: [
-      { label: '5 days', amount: 4100 },
-      { label: '3 days (proportional)', amount: 2460 },
-      { label: '2 days', amount: 1640 },
+      { label: '5 days', amount: kindergartenRecommendedByDays[5] },
+      { label: '3 days (proportional)', amount: kindergartenRecommendedByDays[3] },
+      { label: '2 days', amount: kindergartenRecommendedByDays[2] },
     ],
+    note: `Kindergarten is charged at a daily rate of ${money(kindergartenDailyRate)} based on the full ${money(baseAmount)} amount. There are no multi-child discounts for kindergarten.`,
+    recommendedByDays: kindergartenRecommendedByDays,
   },
   disbursementPerChild: 400,
 };
-
-export const money = (amount) => `$${Number(amount || 0).toLocaleString('en-NZ', { minimumFractionDigits: 2 })}`;
