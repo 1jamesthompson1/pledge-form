@@ -1,0 +1,20 @@
+{
+  "name": "te-ra-pledge-form",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "release": "semantic-release"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.0.0",
+    "eslint": "^9.30.0",
+    "semantic-release": "^24.2.7",
+    "vite": "^7.0.0",
+    "vite-plugin-singlefile": "^2.2.0"
+  }
+}

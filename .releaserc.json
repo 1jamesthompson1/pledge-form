@@ -1,0 +1,19 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "dist/index.html",
+            "label": "Single-file pledge form",
+            "name": "te-ra-pledge-form.html"
+          }
+        ]
+      }
+    ]
+  ]
+}
