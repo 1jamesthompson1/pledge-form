@@ -2,6 +2,8 @@
 
 An embeddable 2026 digital pledge form for Te Ra School and Te Rawhiti Kindergarten.
 
+Current development version: `0.0.1`.
+
 ## Local development
 
 ```sh
@@ -17,21 +19,23 @@ Build the self-contained file with:
 npm run build
 ```
 
-The generated `dist/index.html` contains the HTML, CSS and JavaScript and can be downloaded from a GitHub Release.
+The generated `embed/pledge-form.html` contains the HTML, CSS and JavaScript in one self-contained file and is attached to the GitHub Release.
 
 ## Embedding in Squarespace
 
-The most reliable approach is to host the release HTML at a stable HTTPS URL and add it to a Squarespace Code Block as an iframe:
+The release workflow attaches the bundled HTML file to each GitHub Release. The tracked bundle can also be served through jsDelivr directly from GitHub:
 
 ```html
 <iframe
-  src="https://github.com/OWNER/REPO/releases/download/v0.1.0/te-ra-pledge-form.html"
+  src="https://cdn.jsdelivr.net/gh/1jamesthompson1/pledge-form@main/embed/pledge-form.html"
   title="Special Character Pledge Form 2026"
   style="display:block;width:100%;min-height:2600px;border:0"
 ></iframe>
 ```
 
-GitHub Release asset URLs may redirect. If Squarespace or a browser policy blocks that redirect, serve the asset from GitHub Pages, Cloudflare Pages, or Azure Static Web Apps instead. The host must send a framing-compatible `Content-Security-Policy` and `X-Frame-Options` header.
+GitHub Raw is not used because it may serve HTML as plain text. jsDelivr serves the GitHub file as web content and supports the iframe use case. Pin a release tag instead of `main` for a stable production URL, for example `@v0.0.1`.
+
+The `Release` workflow checks and publishes semantic releases. `npm run build` generates the tracked `embed/pledge-form.html` bundle locally. Changes are intentionally not committed or pushed automatically during development.
 
 ## Runtime configuration
 

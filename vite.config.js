@@ -8,9 +8,13 @@ export default defineConfig(({ command }) => ({
     ...(command === 'build' ? [viteSingleFile()] : []),
   ],
   build: {
+    outDir: 'embed',
     assetsInlineLimit: 100000000,
     cssCodeSplit: false,
     modulePreload: { polyfill: false },
-    rollupOptions: { output: { inlineDynamicImports: true } },
+    rollupOptions: {
+      input: { 'pledge-form': 'index.html' },
+      output: { inlineDynamicImports: true },
+    },
   },
 }));
