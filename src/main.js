@@ -32,6 +32,75 @@ const consentGroups = {
 const app = document.querySelector('#app');
 const userEditedAmounts = new Set();
 const contactEmail = window.PLEDGE_CONFIG?.contactEmail || 'office@tera.school.nz';
+const FORM_LOAD_TIME = Date.now();
+const MIN_FILL_TIME_MS = 5000;
+const isDev = window.PLEDGE_CONFIG?.dev === true;
+const successHTML = '<div class="success"><span class="success-mark">✓</span><p class="eyebrow">Pledge received</p><h2>Thank you, your pledge has been submitted.</h2><p>The school will be in touch if anything needs clarification.</p></div>';
+const params = new URLSearchParams(window.location.search);
+const startDateParam = params.get('startDate') || params.get('startdate');
+const parseStartDate = (raw) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(raw))) return null;
+  const date = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  const [year, month, day] = raw.split('-').map(Number);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return date;
+};
+const totalSchoolWeeks = (() => {
+  const terms = pledgeRules.schoolYear?.terms || [];
+  if (!terms.length) return pledgeRules.weeksPerYear;
+  const days = terms.reduce((total, term) => {
+    const start = new Date(`${term.start}T00:00:00`);
+    const end = new Date(`${term.end}T00:00:00`);
+    return total + Math.round((end - start) / 86400000) + 1;
+  }, 0);
+  return Math.ceil(days / 7);
+})();
+const computeScaling = (date) => {
+  if (!date) return { weeks: totalSchoolWeeks, factor: 1 };
+  let days = 0;
+  for (const term of pledgeRules.schoolYear?.terms || []) {
+    const termStart = new Date(`${term.start}T00:00:00`);
+    const termEnd = new Date(`${term.end}T00:00:00`);
+    const effective = date > termStart ? date : termStart;
+    if (effective <= termEnd) days += Math.round((termEnd - effective) / 86400000) + 1;
+  }
+  const weeks = days > 0 ? Math.ceil(days / 7) : 0;
+  return { weeks, factor: totalSchoolWeeks > 0 ? weeks / totalSchoolWeeks : 1 };
+};
+let startDate = parseStartDate(startDateParam);
+const validStartDate = Boolean(startDate);
+const invalidStartDateNote = startDateParam && !validStartDate
+  ? 'The start date in the URL could not be read. Expected a date like startDate=2027-07-01.'
+  : '';
+let currentStartDateValue = validStartDate ? startDateParam : null;
+let { weeks: weeksRemaining, factor: scaleFactor } = computeScaling(startDate);
+const scale = (amount) => Math.round(amount * scaleFactor * 100) / 100;
+
+function updateDisbursementNote() {
+  const note = document.querySelector('#disbursement-note');
+  if (note) note.textContent = `The ${pledgeRules.year} disbursement contribution is ${money(pledgeRules.disbursementPerChild)} per child${startDate ? `, pro-rated to ${money(scale(pledgeRules.disbursementPerChild))} from the start date` : ''}.`;
+}
+
+function applyStartDate(value) {
+  const date = parseStartDate(value);
+  startDate = date;
+  currentStartDateValue = date ? value : null;
+  ({ weeks: weeksRemaining, factor: scaleFactor } = computeScaling(date));
+  const note = document.querySelector('#start-date-note');
+  if (note) {
+    const input = note.querySelector('#start-date-input');
+    if (input) input.value = value || '';
+    const summary = note.querySelector('#start-date-summary');
+    if (summary) {
+      summary.textContent = date
+        ? `Recommended amounts cover ${weeksRemaining} of ${totalSchoolWeeks} weeks of the ${pledgeRules.year} school year.`
+        : 'No start date set — full recommended amounts apply.';
+    }
+  }
+  updateDisbursementNote();
+  dynamicContributionRows();
+}
 
 function field(label, name, type = 'text', options = {}) {
   const control = type === 'textarea'
@@ -51,12 +120,12 @@ function dynamicChildren() {
   const kindergartenCount = Number(document.querySelector('[name="kindergartenChildCount"]')?.value || 0);
   const rows = (kind, count) => Array.from({ length: count }, (_, index) => {
     const title = kind === 'school' ? `School child ${index + 1}` : `Kindergarten / Nursery child ${index + 1}`;
-    const details = kind === 'school' ? field('Class', `${kind}${index + 1}Class`, 'text', { required: true }) : `${field('Age', `${kind}${index + 1}Age`, 'number', { required: true, min: 0, max: 8 })}<label>Days per week<select name="${kind}${index + 1}Days" required><option value="5" selected>5 days</option><option value="3">3 days</option><option value="2">2 days</option></select></label>`;
+    const details = kind === 'school' ? field('class', `${kind}${index + 1}Class`, 'number', { required: true, min: 1 }) : `${field('Age', `${kind}${index + 1}Age`, 'number', { required: true, min: 0, max: 8 })}<label>Days per week<select name="${kind}${index + 1}Days" required><option value="5" selected>5 days</option><option value="3">3 days</option><option value="2">2 days</option></select></label>`;
     return `<div class="child-row"><strong>${title}</strong>${field('Child name', `${kind}${index + 1}Name`, 'text', { required: true })}${details}</div>`;
   }).join('');
   document.querySelector('#school-children').innerHTML = rows('school', schoolCount) || '<p class="muted">No school children added.</p>';
   document.querySelector('#kindergarten-children').innerHTML = rows('kindergarten', kindergartenCount) || '<p class="muted">No Kindergarten / Nursery children added.</p>';
-  document.querySelector('#disbursement-note').textContent = `The ${pledgeRules.year} disbursement contribution is ${money(pledgeRules.disbursementPerChild)} per child.`;
+  updateDisbursementNote();
   Object.entries(existing).forEach(([name, value]) => {
     const input = document.querySelector(`[name="${name}"]`);
     if (input) input.value = value;
@@ -73,9 +142,9 @@ function dynamicContributionRows() {
     const sourceName = `${kind}${number}Name`;
     const currentAmount = form.querySelector(`[name="${kind}${number}Amount"]`)?.value;
     const days = form.querySelector(`[name="kindergarten${number}Days"]`)?.value || 5;
-    const recommended = kind === 'school'
+    const recommended = scale(kind === 'school'
       ? pledgeRules.school.recommendedByChild[index] || pledgeRules.school.recommendedByChild.at(-1)
-      : pledgeRules.kindergarten.recommendedByDays[days];
+      : pledgeRules.kindergarten.recommendedByDays[days]);
     const amountName = `${kind}${number}Amount`;
     const selected = userEditedAmounts.has(amountName) ? currentAmount : recommended;
     const childName = form.querySelector(`[name="${sourceName}"]`)?.value.trim() || `${kind === 'school' ? 'School' : 'Kindergarten / Nursery'} child ${number}`;
@@ -85,9 +154,9 @@ function dynamicContributionRows() {
   document.querySelector('#disbursement-rows').innerHTML = Array.from({ length: schoolCount + kindergartenCount }, (_, index) => {
     const source = index < schoolCount ? `school${index + 1}Name` : `kindergarten${index - schoolCount + 1}Name`;
     const fieldName = source.replace('Name', 'Disbursement');
-    const current = form.querySelector(`[name="${fieldName}"]`)?.value || pledgeRules.disbursementPerChild;
+    const current = form.querySelector(`[name="${fieldName}"]`)?.value || scale(pledgeRules.disbursementPerChild);
     const childName = form.querySelector(`[name="${source}"]`)?.value.trim() || `Child ${index + 1}`;
-    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(pledgeRules.disbursementPerChild)}</span><input name="${fieldName}" type="number" min="0" step="0.01" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
+    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(scale(pledgeRules.disbursementPerChild))}</span><input name="${fieldName}" type="number" min="0" step="0.01" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
   }).join('') || '<p class="muted">Add students above to see disbursement amounts.</p>';
   syncLinkedNames();
 }
@@ -146,6 +215,7 @@ function render() {
         <p class="intro">A digital version of the special character pledge form. Your progress is saved on this device while you complete the form.</p>
         <p class="draft-warning"><strong>Draft form:</strong> This form is currently in development and not yet live. Do not submit real pledges until this notice is removed.</p>
         <div class="status" role="status" aria-live="polite"><span class="status-dot"></span><span id="save-status">Ready to begin</span></div>
+        ${isDev ? '<button type="button" id="dev-fill" class="dev-fill">Load test data</button>' : ''}
       </header>
       <form id="pledge-form">
         <section class="card accent-card">
@@ -162,7 +232,8 @@ function render() {
         <section class="card"><div class="section-heading"><span>03</span><div><p class="eyebrow">Contribution</p><h2>Our pledge for ${pledgeRules.year}</h2></div></div>
           <p class="muted">The contribution is donation-based. Recommended amounts are guidance, not fees. Please contact the Trust Administrator if you need to discuss financial hardship.</p>
           <p class="rule-note">School pricing: ${pledgeRules.school.note}</p>
-          <p class="rule-note">Kindergarten pricing: ${pledgeRules.kindergarten.note}</p><h3>Pledge amounts</h3><div class="amount-table"><div class="amount-head"><span>Student</span><span>Recommended</span><span>Agreed amount</span></div><div id="pledge-rows"></div></div>${field('Supplementary donation / pay it forward', 'supplementaryDonation', 'number', { min: 0 })}<h3>Disbursement amounts</h3><div class="amount-table"><div class="amount-head"><span>Student</span><span>Contribution</span><span>Amount</span></div><div id="disbursement-rows"></div></div>${field('Disbursement contribution', 'disbursement', 'number', { min: 0, readonly: true })}<p id="disbursement-note" class="muted"></p>
+          <p class="rule-note">Kindergarten pricing: ${pledgeRules.kindergarten.note}</p>
+          ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">Recommended amounts cover ${weeksRemaining} of ${totalSchoolWeeks} weeks of the ${pledgeRules.year} school year.</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}<h3>Pledge amounts</h3><div class="amount-table"><div class="amount-head"><span>Student</span><span>Recommended</span><span>Agreed amount</span></div><div id="pledge-rows"></div></div>${field('Supplementary donation / pay it forward', 'supplementaryDonation', 'number', { min: 0 })}<h3>Disbursement amounts</h3><div class="amount-table"><div class="amount-head"><span>Student</span><span>Contribution</span><span>Amount</span></div><div id="disbursement-rows"></div></div>${field('Disbursement contribution', 'disbursement', 'number', { min: 0, readonly: true })}<p id="disbursement-note" class="muted"></p>
            <div class="total-line">${field(`Total pledge for ${pledgeRules.year}`, 'totalPledge', 'number', { required: true, min: 0, readonly: true })}</div><div class="price-summary" aria-live="polite"><div><span>Per term</span><strong id="term-total">$0.00</strong><small>Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>Per week (calendar year)</span><strong id="week-total">$0.00</strong><small>Total divided by ${pledgeRules.weeksPerYear} weeks</small></div></div>
            <fieldset><legend>Indicative payment plan</legend>${['Weekly', 'Fortnightly', 'Monthly', 'Termly', 'Lump sum'].map((label) => `<label class="check"><input type="radio" name="paymentPlan" value="${label}" required /> <span>${label}</span></label>`).join('')}</fieldset>
            ${field('Pledge comments', 'pledgeComments', 'textarea')}
@@ -187,6 +258,7 @@ function render() {
 
         <section class="card sign-card"><div class="section-heading"><span>07</span><div><p class="eyebrow">Declaration</p><h2>Confirm and submit</h2></div></div>
           <p>I confirm that the information above is correct and that I will advise the school of changes.</p>
+          <label class="honeypot" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
           <div class="grid two">${field('Parent / guardian signature (typed)', 'signature', 'text', { required: true })}${field('Date', 'signatureDate', 'date', { required: true })}</div>
           <button class="submit" type="submit">Submit pledge <span>↗</span></button>
           <p class="fine-print">Submissions are sent securely to the school’s configured service.</p>
@@ -294,16 +366,25 @@ async function submit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   if (!form.reportValidity()) return;
+  const timeOnPageMs = Date.now() - FORM_LOAD_TIME;
+  const honeypotFilled = Boolean(form.querySelector('[name="website"]')?.value.trim());
+  const isSpam = honeypotFilled || (!new URLSearchParams(window.location.search).has('dev') && timeOnPageMs < MIN_FILL_TIME_MS);
   const endpoint = new URLSearchParams(window.location.search).get('endpoint') || window.PLEDGE_CONFIG?.submitUrl;
   const button = form.querySelector('.submit');
   button.disabled = true;
   button.textContent = 'Sending…';
+  if (isSpam) {
+    localStorage.removeItem(STORAGE_KEY);
+    form.innerHTML = successHTML;
+    document.querySelector('#save-status').textContent = 'Submitted successfully';
+    return;
+  }
   try {
     if (!endpoint) throw new Error('No submission endpoint configured');
-    const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ form: formData(), submittedAt: new Date().toISOString() }) });
+    const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ form: formData(), submittedAt: new Date().toISOString(), timeOnPageMs, ...(currentStartDateValue ? { startDate: currentStartDateValue } : {}) }) });
     if (!response.ok) throw new Error(`Submission failed (${response.status})`);
     localStorage.removeItem(STORAGE_KEY);
-    form.innerHTML = '<div class="success"><span class="success-mark">✓</span><p class="eyebrow">Pledge received</p><h2>Thank you, your pledge has been submitted.</h2><p>The school will be in touch if anything needs clarification.</p></div>';
+    form.innerHTML = successHTML;
     document.querySelector('#save-status').textContent = 'Submitted successfully';
   } catch (error) {
     button.disabled = false;
@@ -325,11 +406,12 @@ form.addEventListener('input', (event) => {
   saveDraft();
 });
 form.addEventListener('change', (event) => {
+  if (event.target.id === 'start-date-input') applyStartDate(event.target.value);
   if (event.target.name === 'schoolChildCount' || event.target.name === 'kindergartenChildCount') dynamicChildren();
   if (event.target.name === 'schoolChildCount' || event.target.name === 'kindergartenChildCount' || event.target.name === 'custodyApplies') updateCustodySection();
   if (/^kindergarten\d+Days$/.test(event.target.name)) {
-    const amount = pledgeRules.kindergarten.recommendedByDays[event.target.value];
-    const amountInput = document.querySelector(`[name="${event.target.name.replace('Days', 'Amount')}"]`);
+    const amount = scale(pledgeRules.kindergarten.recommendedByDays[event.target.value]);
+    const amountInput = form.querySelector(`[name="${event.target.name.replace('Days', 'Amount')}"]`);
     if (amountInput) amountInput.value = amount;
     dynamicContributionRows();
   }
@@ -342,6 +424,10 @@ dynamicChildren();
 calculateTotals();
 
 document.querySelector('#add-custody-arrangement')?.addEventListener('click', addCustodyArrangement);
+document.querySelector('#dev-fill')?.addEventListener('click', () => {
+  loadDevAnswers();
+  document.querySelector('#save-status').textContent = 'Test data loaded';
+});
 document.querySelector('#custody-arrangements')?.addEventListener('click', (event) => {
   if (event.target.classList.contains('remove-custody-arrangement')) {
     removeCustodyArrangement(Number(event.target.dataset.index));
@@ -378,9 +464,9 @@ function loadDevAnswers() {
   set('kindergartenChildCount', '1');
 
   set('school1Name', 'School Child One');
-  set('school1Class', 'Room 1');
+  set('school1Class', '1');
   set('school2Name', 'School Child Two');
-  set('school2Class', 'Room 2');
+  set('school2Class', '2');
   set('kindergarten1Name', 'Kindy Child');
   set('kindergarten1Age', '4');
   set('kindergarten1Days', '3');

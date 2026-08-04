@@ -5,7 +5,7 @@ export const money = (amount) => `$${Number(amount || 0).toLocaleString('en-NZ',
 
 // Editable base price and discount schedule. Recommended amounts are calculated from these.
 const baseAmount = 4100;
-const schoolDiscountSchedule = [0, 0.20, 0.20, 1, 1]; // fraction off full price for child 1..5
+const schoolDiscountSchedule = [0, 0.20, 0.40, 1, 1]; // fraction off full price for child 1..5
 const kindergartenDaysPerWeek = 5;
 
 const schoolRecommendedByChild = schoolDiscountSchedule.map((discount) =>
@@ -25,6 +25,16 @@ export const pledgeRules = {
   termsPerYear: 4,
   weeksPerYear: 52,
   baseAmount,
+  // Ministry of Education 2027 school terms (education.govt.nz/school-terms-and-holidays-dates).
+  // Schools choose their own Term 1 start (28 Jan – 3 Feb) and Term 4 end (no later than 17 Dec).
+  schoolYear: {
+    terms: [
+      { start: '2027-02-01', end: '2027-04-09' },
+      { start: '2027-04-27', end: '2027-07-02' },
+      { start: '2027-07-19', end: '2027-09-24' },
+      { start: '2027-10-11', end: '2027-12-17' },
+    ],
+  },
   school: {
     discountSchedule: schoolDiscountSchedule,
     options: [
@@ -32,7 +42,7 @@ export const pledgeRules = {
       { label: '20% less', amount: schoolRecommendedByChild[1] },
       { label: 'Free', amount: schoolRecommendedByChild[3] },
     ],
-    note: `Full price is ${money(baseAmount)} for the first child. The second and third children are 20% less, and the fourth and fifth children are free.`,
+    note: `Full price is ${money(baseAmount)} for the first child. The second child is 20% less, the third child is 40% less, and the fourth and fifth children are free.`,
     recommendedByChild: schoolRecommendedByChild,
   },
   kindergarten: {

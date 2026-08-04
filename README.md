@@ -8,8 +8,11 @@ Current development version: `0.0.1`.
 
 ```sh
 npm install
+cp .env.example .env   # optional; sets local endpoint, contact email and dev mode
 npm run dev
 ```
+
+The `.env` file supplies the dev-only runtime config — `VITE_SUBMIT_URL`, `VITE_CONTACT_EMAIL` and `VITE_DEV=true` — which the dev server injects as `window.PLEDGE_CONFIG`. With `VITE_DEV=true` a discreet **Load test data** button appears next to the save status; one press fills the whole form with sample answers (same data as the `?dev=1` query string, which still works for testing the submission endpoint).
 
 Open the HTTPS URL printed by Vite. The development server uses a local certificate so it behaves more like the HTTPS Squarespace deployment. Your browser may show a certificate warning the first time.
 
@@ -58,8 +61,6 @@ Add `?dev=1` to the URL to pre-fill the form with sample data. This is useful fo
 https://example.org/te-ra-pledge-form.html?dev=1&endpoint=https%3A%2F%2Fapi.example.org%2Fpledges
 ```
 
-The custodial-arrangements section (section 06) supports multiple arrangements. Check "My children live across more than one household..." to reveal the first arrangement, then click **Add another custodial arrangement** for each additional household or agreement. Each arrangement records which children it applies to, living arrangements, legal restrictions, financial arrangements, and any further details.
-
 ## Backend
 
 The optional Azure Functions backend lives in `functions/`. It receives the submitted pledge at `POST /api/pledges`, validates it, and optionally sends a notification email via Microsoft Graph. See `functions/README.md` for local development and deployment instructions.
@@ -71,6 +72,16 @@ The `infra/` folder contains OpenTofu (Terraform-compatible) configuration to pr
 ## Pricing rules
 
 The editable pledge pricing rules are in `src/pledge-config.js`. This includes the year, school recommendations, kindergarten day rates, the per-child disbursement amount, four terms per year, and 52 weeks per calendar year. The form calculates annual, per-term, and calendar-year weekly totals from those values. The payment plan is indicative only, with optional details.
+
+## Mid-year start URLs
+
+Add a `startDate` query parameter to the form URL for families joining partway through the school year. Recommended amounts are then pro-rated to the remaining weeks of the school year, calculated from the Ministry of Education term dates in `src/pledge-config.js` (term dates rounded up to whole weeks):
+
+```text
+https://example.org/te-ra-pledge-form.html?startDate=2027-07-19
+```
+
+When a start date is set, a note appears in the pledge section ("These recommended amounts are based on a start date of ...") and the start date is included in the submission payload.
 
 ## Releases
 
