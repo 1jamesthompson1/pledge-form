@@ -36,6 +36,14 @@ curl -X POST http://localhost:7071/api/pledges \
 
 The endpoint treats submissions without `timeOnPageMs` (or with a value under 5 seconds) as likely spam: it accepts them with a 200 response but does not send the notification email or run downstream actions.
 
+### Pledge pricing config
+
+The pricing rules used by the PDF (`src/pledgeConfig.js`) are **generated** from the form's `src/pledge-config.js` at the repo root by `scripts/sync-config.js`. The sync runs automatically on `npm start` (`npm run sync:config` to run it manually). Edit prices in the root source file only — the generated copy is gitignored. Run `npm run sync:config` again before publishing if you changed prices without a `npm start` since.
+
+### Local PDF demo
+
+The formatted pledge PDF (via `src/pledgePdf.js`) can be saved to disk for inspection without any email or Graph setup. `local.settings.json` sets `PDF_SAVE_DIR` to `out`, so after a successful submission a file appears at `functions/out/pledge-<timestamp>.pdf` (the folder is gitignored). Open it with any PDF viewer. Leave `PDF_SAVE_DIR` unset in Azure.
+
 ## Deployment
 
 1. Create a Function App in the Azure portal (Node.js 20, Consumption plan).
@@ -53,6 +61,7 @@ func azure functionapp publish <your-function-app-name>
 | `EMAIL_ENABLED` | `true` to send emails, `false` to skip |
 | `EMAIL_SENDER` | Email address to send from (must be a licensed mailbox) |
 | `EMAIL_ADMIN` | Optional school office address to CC on every pledge email |
+| `PDF_SAVE_DIR` | Local-only demo: directory to write a copy of the formatted pledge PDF (leave unset in Azure) |
 | `AZURE_TENANT_ID` | Microsoft Entra tenant ID |
 | `AZURE_CLIENT_ID` | App registration client ID |
 | `AZURE_CLIENT_SECRET` | App registration client secret |

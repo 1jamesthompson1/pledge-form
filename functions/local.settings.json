@@ -7,6 +7,7 @@
     "EMAIL_ENABLED": "false",
     "EMAIL_SENDER": "",
     "EMAIL_ADMIN": "",
+    "PDF_SAVE_DIR": "out",
     "EXCEL_ENABLED": "false",
     "EXCEL_WORKBOOK_PATH": "",
     "EXCEL_TABLE_NAME": "Pledges",

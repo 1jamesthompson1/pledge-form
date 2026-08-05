@@ -1,4 +1,6 @@
 import { app } from '@azure/functions';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { sendPledgeNotification } from '../graphEmail.js';
 import { appendPledgeToExcel } from '../graphExcel.js';
 import { buildPledgePdf } from '../pledgePdf.js';
@@ -84,6 +86,22 @@ app.http('pledgeReceiver', {
       email: pledge.email,
       receivedAt: pledge.receivedAt,
     });
+
+    // Local demo: save the formatted pledge PDF to disk so it can be inspected
+    // without email/Excel/Graph setup. Set PDF_SAVE_DIR (e.g. "out") locally;
+    // leave unset in production.
+    if (process.env.PDF_SAVE_DIR) {
+      try {
+        const pdfBuffer = await buildPledgePdf(pledge);
+        const dir = process.env.PDF_SAVE_DIR;
+        await mkdir(dir, { recursive: true });
+        const filePath = path.join(dir, `pledge-${Date.now()}.pdf`);
+        await writeFile(filePath, pdfBuffer);
+        context.log(`Demo PDF saved to ${filePath}`);
+      } catch (error) {
+        context.error('Failed to save demo PDF', error);
+      }
+    }
 
     // TODO: add your downstream actions here, for example:
     // - write to a SharePoint list or Excel file

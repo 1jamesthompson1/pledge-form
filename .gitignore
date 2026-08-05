@@ -9,6 +9,8 @@ dist/
 functions/.vscode/
 functions/bin/
 functions/obj/
+functions/out/
+functions/src/pledgeConfig.js
 *.log
 
 # OpenTofu / Terraform

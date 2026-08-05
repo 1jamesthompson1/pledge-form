@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "func start",
+    "sync:config": "node scripts/sync-config.js",
+    "prestart": "npm run sync:config",
     "test": "echo 'No tests yet'"
   },
   "dependencies": {
