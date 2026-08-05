@@ -311,7 +311,28 @@ function removeCustodyArrangement(index) {
 }
 
 function formData() {
-  return Object.fromEntries(new FormData(document.querySelector('#pledge-form')).entries());
+  const data = {};
+  document.querySelectorAll('#pledge-form [name]').forEach((input) => {
+    if (input.disabled) {
+      data[input.name] = input.type === 'checkbox' ? 'off' : '';
+    } else if (input.type === 'checkbox') {
+      data[input.name] = input.checked ? 'on' : 'off';
+    } else if (input.type === 'radio') {
+      data[input.name] = input.checked ? input.value : 'off';
+    } else {
+      data[input.name] = input.value;
+    }
+  });
+  return data;
+}
+
+function submissionPayload() {
+  return {
+    form: formData(),
+    submittedAt: new Date().toISOString(),
+    timeOnPageMs: Date.now() - FORM_LOAD_TIME,
+    ...(currentStartDateValue ? { startDate: currentStartDateValue } : {}),
+  };
 }
 
 function saveDraft() {
@@ -332,14 +353,21 @@ function restoreDraft() {
     });
     dynamicChildren();
     const custodyToggle = document.querySelector('[name="custodyApplies"]');
-    if (custodyToggle) custodyToggle.checked = Boolean(draft.custodyApplies);
+    if (custodyToggle) custodyToggle.checked = draft.custodyApplies === 'on';
     const custodyCountInput = document.querySelector('[name="custodyArrangementCount"]');
     if (custodyCountInput && draft.custodyArrangementCount) custodyCountInput.value = draft.custodyArrangementCount;
     updateCustodySection();
     Object.entries(draft).forEach(([name, value]) => {
       const input = document.querySelector(`[name="${name}"]`);
-      if (input && input.type !== 'checkbox' && input.type !== 'radio') input.value = value;
-      if (input && (input.type === 'checkbox' || input.type === 'radio')) input.checked = true;
+      if (!input) return;
+      if (input.type === 'checkbox') input.checked = value === 'on';
+      else if (input.type === 'radio') {
+        document.querySelectorAll(`[name="${name}"]`).forEach((radio) => {
+          radio.checked = value !== 'off' && radio.value === value;
+        });
+      } else {
+        input.value = value;
+      }
     });
     if (Object.keys(draft).length) document.querySelector('#save-status').textContent = 'Draft restored from this device';
     calculateTotals();
@@ -362,13 +390,58 @@ function calculateTotals() {
   document.querySelector('#week-total').textContent = money(weekTotal);
 }
 
+let devPayloadConfirmed = false;
+
+function showSubmissionPopup(payload, onSend) {
+  document.querySelector('.dev-popup')?.remove();
+  const json = JSON.stringify(payload, null, 2);
+  const overlay = document.createElement('div');
+  overlay.className = 'dev-popup';
+  overlay.innerHTML = `
+    <div class="dev-popup-box" role="dialog" aria-modal="true" aria-label="Submission JSON preview">
+      <header><h2>Submission JSON</h2><button type="button" class="dev-popup-close" aria-label="Close">&times;</button></header>
+      <pre class="dev-popup-json"></pre>
+      <footer>
+        <button type="button" class="dev-popup-copy">Copy JSON</button>
+        <button type="button" class="dev-popup-send">Send anyway</button>
+        <button type="button" class="dev-popup-close-btn">Close</button>
+      </footer>
+    </div>`;
+  overlay.querySelector('.dev-popup-json').textContent = json;
+  const close = () => overlay.remove();
+  overlay.querySelector('.dev-popup-close').addEventListener('click', close);
+  overlay.querySelector('.dev-popup-close-btn').addEventListener('click', close);
+  overlay.querySelector('.dev-popup-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(json);
+      overlay.querySelector('.dev-popup-copy').textContent = 'Copied';
+    } catch { /* Clipboard unavailable. */ }
+  });
+  overlay.querySelector('.dev-popup-send').addEventListener('click', () => {
+    overlay.remove();
+    onSend();
+  });
+  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); }, { once: true });
+  document.body.appendChild(overlay);
+}
+
 async function submit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   if (!form.reportValidity()) return;
-  const timeOnPageMs = Date.now() - FORM_LOAD_TIME;
+  if (isDev && !devPayloadConfirmed) {
+    devPayloadConfirmed = true;
+    showSubmissionPopup(submissionPayload(), () => {
+      devPayloadConfirmed = false;
+      submit(event);
+    });
+    return;
+  }
+  devPayloadConfirmed = false;
+  const payload = submissionPayload();
   const honeypotFilled = Boolean(form.querySelector('[name="website"]')?.value.trim());
-  const isSpam = honeypotFilled || (!new URLSearchParams(window.location.search).has('dev') && timeOnPageMs < MIN_FILL_TIME_MS);
+  const isSpam = honeypotFilled || (!new URLSearchParams(window.location.search).has('dev') && payload.timeOnPageMs < MIN_FILL_TIME_MS);
   const endpoint = new URLSearchParams(window.location.search).get('endpoint') || window.PLEDGE_CONFIG?.submitUrl;
   const button = form.querySelector('.submit');
   button.disabled = true;
@@ -381,7 +454,7 @@ async function submit(event) {
   }
   try {
     if (!endpoint) throw new Error('No submission endpoint configured');
-    const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ form: formData(), submittedAt: new Date().toISOString(), timeOnPageMs, ...(currentStartDateValue ? { startDate: currentStartDateValue } : {}) }) });
+    const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) throw new Error(`Submission failed (${response.status})`);
     localStorage.removeItem(STORAGE_KEY);
     form.innerHTML = successHTML;
