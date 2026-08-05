@@ -63,11 +63,7 @@ https://example.org/te-ra-pledge-form.html?dev=1&endpoint=https%3A%2F%2Fapi.exam
 
 ## Backend
 
-The optional Azure Functions backend lives in `functions/`. It receives the submitted pledge at `POST /api/pledges`, validates it, and optionally sends a notification email via Microsoft Graph. See `functions/README.md` for local development and deployment instructions.
-
-## Infrastructure
-
-The `infra/` folder contains OpenTofu (Terraform-compatible) configuration to provision the Azure Function App, storage, Application Insights, and the Microsoft Entra app registration for Graph email. See `infra/README.md` for usage.
+The backend is a power automate workflow.
 
 ## Pricing rules
 
@@ -94,3 +90,7 @@ docs: clarify embedding setup
 ```
 
 Pushes to `main` run lint and build, then semantic-release creates a semantic GitHub Release and attaches the bundled `te-ra-pledge-form.html`. A `feat` produces a minor release, `fix` produces a patch release, and `BREAKING CHANGE:` produces a major release.
+
+## GitHub Pages
+
+When a release is published, the `Deploy to GitHub Pages` workflow builds the form and deploys it as a static site at `https://tera-pledge-form.sjhl.nz`. The static site is the same single-file form, so configure it the same way (e.g. with the `endpoint` query string or a `window.PLEDGE_CONFIG` snippet in the head).
