@@ -81,7 +81,7 @@ Add a `startDate` query parameter to the form URL for families joining partway t
 https://example.org/te-ra-pledge-form.html?startDate=2027-07-19
 ```
 
-When a start date is set, a note appears in the pledge section ("These recommended amounts are based on a start date of ...") and the start date is included in the submission payload.
+When a start date is set, a note appears in the pledge section ("These recommended amounts are based on a start date of ...") and the start date is included in the submission payload. The date is editable in the form — changing it re-calculates the recommended amounts immediately. The date must be in strict `YYYY-MM-DD` format; an unreadable date shows a warning instead of silently ignoring the parameter.
 
 ## Releases
 

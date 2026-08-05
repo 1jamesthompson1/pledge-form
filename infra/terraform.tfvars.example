@@ -1,0 +1,18 @@
+resource_group_name = "rg-te-ra-pledge-prod"
+location            = "New Zealand North"
+location_code       = "newzealandnorth"
+app_name            = "te-ra-pledge"
+environment         = "prod"
+
+# Consumption is cheapest but has cold starts.
+# Use PremiumV2 or PremiumV3 to avoid cold starts.
+function_plan_tier = "Consumption"
+
+# Licensed Microsoft 365 mailbox that the Function sends from
+email_sender = "notifications@tera.school.nz"
+
+# Optional school office address to CC
+email_admin = "office@tera.school.nz"
+
+# Set to false if you want to create the app registration manually
+create_app_registration = true

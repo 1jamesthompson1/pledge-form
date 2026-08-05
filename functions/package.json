@@ -1,0 +1,19 @@
+{
+  "name": "te-ra-pledge-functions",
+  "version": "0.0.1",
+  "description": "Azure Functions backend for the Te Ra pledge form",
+  "main": "src/functions/*.js",
+  "type": "module",
+  "scripts": {
+    "start": "func start",
+    "test": "echo 'No tests yet'"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.5.0",
+    "@azure/identity": "^4.4.0",
+    "pdfkit": "^0.19.1"
+  },
+  "devDependencies": {
+    "azure-functions-core-tools": "^4.0.6284"
+  }
+}
