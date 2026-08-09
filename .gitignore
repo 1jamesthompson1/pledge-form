@@ -10,7 +10,10 @@ functions/.vscode/
 functions/bin/
 functions/obj/
 functions/out/
+functions/local.settings.json
 functions/src/pledgeConfig.js
+functions/src/formDefinition.js
+functions/src/pledgeForm.html
 *.log
 
 # OpenTofu / Terraform

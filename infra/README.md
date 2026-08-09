@@ -8,6 +8,8 @@ This folder contains infrastructure-as-code for the Azure Function App backend.
 - Storage account for the Function App
 - Application Insights
 - Linux Function App (Consumption by default, Premium optional)
+- Private blob container (`pledge-submissions`) in the Function storage account — every raw submission is archived here before processing
+- Audit table (`pledgeaudit`) recording blob name, parent name, submission date, processing status, email outcome and any errors
 - Microsoft Entra app registration for Graph email sending
 - Service principal and admin consent for `Mail.Send`
 

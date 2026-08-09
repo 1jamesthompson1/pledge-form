@@ -1,28 +1,12 @@
 import './style.css';
 import { money, pledgeRules } from './pledge-config.js';
+import {
+  interpolate, formatLongDate, sections, sectionTitle, consentGroups,
+  eotcStatements, eotcLegends, labels,
+} from './form-definition.js';
 import examplePledge from './example-data.json';
 
 const STORAGE_KEY = `te-ra-pledge-form:${pledgeRules.year}`;
-const consentGroups = {
-  medical: [
-    'In an emergency, school staff may act on my behalf.',
-    'School staff may administer pain relief, such as paracetamol, after seeking verbal permission.',
-    'Basic first aid may be given, including an icepack, plaster, arnica cream or hypercal cream.',
-    'I will tell the school about changes in my child\'s medical circumstances.',
-  ],
-  conduct: [
-    'Treat others with respect and uphold their privacy.',
-    'Work in partnership with staff for the benefit of all students.',
-    'Respect and adhere to the school values and special character.',
-    'Use digital technology and social media safely and responsibly.',
-    'Act in accordance with school rules, procedures and legal obligations.',
-  ],
-  photos: [
-    'My child may be photographed at school, kindergarten / nursery and EOTC events.',
-    'Photos may be published on the school website or newsletter using first name only.',
-    'Photos may be displayed on social media without names.',
-  ],
-};
 
 const app = document.querySelector('#app');
 const userEditedAmounts = new Set();
@@ -41,6 +25,8 @@ const parseStartDate = (raw) => {
   if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
   return date;
 };
+const firstTermStart = pledgeRules.schoolYear?.terms?.[0]?.start;
+const firstTermStartLabel = formatLongDate(firstTermStart);
 const totalSchoolWeeks = (() => {
   const terms = pledgeRules.schoolYear?.terms || [];
   if (!terms.length) return pledgeRules.weeksPerYear;
@@ -51,6 +37,20 @@ const totalSchoolWeeks = (() => {
   }, 0);
   return Math.ceil(days / 7);
 })();
+const schoolYearMonths = (() => {
+  const terms = pledgeRules.schoolYear?.terms || [];
+  if (!terms.length) return 12;
+  const start = new Date(`${terms[0].start}T00:00:00`);
+  const end = new Date(`${terms.at(-1).end}T00:00:00`);
+  return end.getMonth() - start.getMonth() + 1;
+})();
+const paymentPlanOptions = [
+  { key: 'week', label: 'Weekly' },
+  { key: 'fortnight', label: 'Fortnightly' },
+  { key: 'month', label: 'Monthly' },
+  { key: 'term', label: 'Termly' },
+  { key: 'lump', label: 'Lump sum' },
+];
 const computeScaling = (date) => {
   if (!date) return { weeks: totalSchoolWeeks, factor: 1 };
   let days = 0;
@@ -89,8 +89,8 @@ function applyStartDate(value) {
     const summary = note.querySelector('#start-date-summary');
     if (summary) {
       summary.textContent = date
-        ? `Recommended amounts cover ${weeksRemaining} of ${totalSchoolWeeks} weeks of the ${pledgeRules.year} school year.`
-        : 'No start date set — full recommended amounts apply.';
+        ? interpolate(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks, year: pledgeRules.year })
+        : labels.noStartDateNote;
     }
   }
   updateDisbursementNote();
@@ -100,12 +100,17 @@ function applyStartDate(value) {
 function field(label, name, type = 'text', options = {}) {
   const control = type === 'textarea'
     ? `<textarea name="${name}" rows="4" ${options.required ? 'required' : ''}></textarea>`
-    : `<input name="${name}" type="${type}" ${options.required ? 'required' : ''} ${options.readonly ? 'readonly' : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} />`;
-  return `<label>${label}${options.required ? ' <span aria-hidden="true">*</span>' : ''}${control}</label>`;
+    : `<input name="${name}" type="${type}" ${options.required ? 'required' : ''} ${options.readonly ? 'readonly' : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} ${options.max !== undefined ? `max="${options.max}"` : ''} />`;
+  return `<label><span class="field-label">${label}${options.required ? ' <span aria-hidden="true">*</span>' : ''}</span>${control}</label>`;
 }
 
-function checklist(title, key, required = false) {
-  return `<fieldset><legend>${title}</legend>${consentGroups[key].map((text, index) => `
+function sectionHead(number) {
+  const section = sections.find((s) => s.number === number);
+  return `<div class="section-heading"><h2>${sectionTitle(section, pledgeRules.year)}</h2></div>`;
+}
+
+function checklist(key, required = false) {
+  return `<fieldset>${consentGroups[key].map((text, index) => `
     <label class="check"><input type="checkbox" name="${key}-${index}" ${required ? 'required' : ''} /> <span>${text}</span></label>`).join('')}</fieldset>`;
 }
 
@@ -114,12 +119,13 @@ function dynamicChildren() {
   const schoolCount = Number(document.querySelector('[name="schoolChildCount"]')?.value || 0);
   const kindergartenCount = Number(document.querySelector('[name="kindergartenChildCount"]')?.value || 0);
   const rows = (kind, count) => Array.from({ length: count }, (_, index) => {
-    const title = kind === 'school' ? `School child ${index + 1}` : `Kindergarten / Nursery child ${index + 1}`;
-    const details = kind === 'school' ? field('class', `${kind}${index + 1}Class`, 'number', { required: true, min: 1 }) : `${field('Age', `${kind}${index + 1}Age`, 'number', { required: true, min: 0, max: 8 })}<label>Days per week<select name="${kind}${index + 1}Days" required><option value="5" selected>5 days</option><option value="3">3 days</option><option value="2">2 days</option></select></label>`;
-    return `<div class="child-row"><strong>${title}</strong>${field('Child name', `${kind}${index + 1}Name`, 'text', { required: true })}${details}</div>`;
+    const n = index + 1;
+    const title = interpolate(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n });
+    const details = kind === 'school' ? field(interpolate(labels.childClass, { year: pledgeRules.year }), `${kind}${n}Class`, 'number', { required: true, min: 1, max: 7 }) : `${field(interpolate(labels.childAge, { termStart: firstTermStartLabel }), `${kind}${n}Age`, 'number', { required: true, min: 2, max: 6 })}<label>${labels.daysPerWeek}<select name="${kind}${n}Days" required><option value="5" selected>5 days</option><option value="3">3 days</option><option value="2">2 days</option></select></label>`;
+    return `<div class="child-row"><strong>${title}</strong>${field(labels.childName, `${kind}${n}Name`, 'text', { required: true })}${details}</div>`;
   }).join('');
-  document.querySelector('#school-children').innerHTML = rows('school', schoolCount) || '<p class="muted">No school children added.</p>';
-  document.querySelector('#kindergarten-children').innerHTML = rows('kindergarten', kindergartenCount) || '<p class="muted">No Kindergarten / Nursery children added.</p>';
+  document.querySelector('#school-children').innerHTML = rows('school', schoolCount) || `<p class="muted">${labels.noSchoolChildren}</p>`;
+  document.querySelector('#kindergarten-children').innerHTML = rows('kindergarten', kindergartenCount) || `<p class="muted">${labels.noKindergartenChildren}</p>`;
   updateDisbursementNote();
   Object.entries(existing).forEach(([name, value]) => {
     const input = document.querySelector(`[name="${name}"]`);
@@ -218,20 +224,26 @@ function updateCustodySection() {
   document.querySelector('#custody-arrangements').innerHTML = Array.from({ length: count }, (_, index) => {
     const childrenCheckboxes = children.map(([kind, number]) => {
       const name = `${kind}${number}Name`;
-      const label = document.querySelector(`[name="${name}"]`)?.value.trim() || `${kind === 'school' ? 'School' : 'Kindergarten / Nursery'} child ${number}`;
+      const label = document.querySelector(`[name="${name}"]`)?.value.trim() || interpolate(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n: number });
       const checkboxName = `custody-${index}-${kind}${number}`;
       return `<label class="check"><input type="checkbox" name="${checkboxName}" ${existing[checkboxName] ? 'checked' : ''} /> <span data-source="${name}">${label}</span></label>`;
     }).join('') || '<p class="muted">Add children in section 01 first.</p>';
     return `<div class="custody-arrangement">
-      <h4>Custodial arrangement ${index + 1}</h4>
-      <fieldset><legend>Select the children affected</legend>${childrenCheckboxes}</fieldset>
-      ${field('What are the living arrangements for the affected children?', `custody-${index}-livingArrangements`, 'textarea', { required: true })}
-      ${field('Is there anyone who does not have legal rights of access to the children? Please include their name and any relevant details, or write "None".', `custody-${index}-legalRestrictions`, 'textarea', { required: true })}
-      ${field('What are the financial arrangements for the pledge, disbursements, camps and other costs?', `custody-${index}-financialArrangements`, 'textarea', { required: true })}
-      ${field('Further details about the custodial arrangement', `custody-${index}-explanation`, 'textarea')}
-      ${index > 0 ? `<button type="button" class="remove-custody-arrangement" data-index="${index}">Remove arrangement</button>` : ''}
+      <h4>${interpolate(labels.custodyArrangement, { n: index + 1 })}</h4>
+      <fieldset><legend>${labels.custodyChildrenAffected}</legend>${childrenCheckboxes}</fieldset>
+      ${field(labels.custodyLivingArrangements, `custody-${index}-livingArrangements`, 'textarea', { required: true })}
+      ${field(labels.custodyLegalRestrictions, `custody-${index}-legalRestrictions`, 'textarea', { required: true })}
+      ${field(labels.custodyFinancialArrangements, `custody-${index}-financialArrangements`, 'textarea', { required: true })}
+      ${field(labels.custodyExplanation, `custody-${index}-explanation`, 'textarea')}
+      ${index > 0 ? `<button type="button" class="remove-custody-arrangement" data-index="${index}">${labels.custodyRemove}</button>` : ''}
     </div>`;
   }).join('');
+  Object.entries(existing).forEach(([name, value]) => {
+    if (!name.startsWith('custody-')) return;
+    const input = document.querySelector(`[name="${name}"]`);
+    if (input && input.type !== 'checkbox' && input.type !== 'radio') input.value = value;
+    if (input && (input.type === 'checkbox' || input.type === 'radio')) input.checked = Boolean(value);
+  });
 }
 
 function render() {
@@ -246,64 +258,69 @@ function render() {
       </header>
       <form id="pledge-form">
         <section class="card accent-card">
-          <div class="section-heading"><span>01</span><div><p class="eyebrow">Whanau details</p><h2>Who is completing this pledge?</h2></div></div>
-          <div class="grid two">${field('Parent / guardian name', 'parentName', 'text', { required: true })}${field('Email address', 'email', 'email', { required: true })}</div>
-          <h3>How many children are you completing this pledge for?</h3><div class="grid two"><label>School children<select name="schoolChildCount" required>${Array.from({ length: pledgeRules.maxChildrenPerGroup + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select></label><label>Kindergarten / Nursery children<select name="kindergartenChildCount" required>${Array.from({ length: pledgeRules.maxChildrenPerGroup + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select></label></div>
-          <h3>School children</h3><div id="school-children"></div><h3>Kindergarten / Nursery children</h3><div id="kindergarten-children"></div>
+          ${sectionHead('01')}
+          <div class="grid two">${field(labels.parentName, 'parentName', 'text', { required: true })}${field(labels.email, 'email', 'email', { required: true })}</div>
+          <h3>${labels.childrenQuestion}</h3><div class="grid two"><label>${labels.schoolChildren}<select name="schoolChildCount" required>${Array.from({ length: pledgeRules.maxChildrenPerGroup + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select></label><label>${labels.kindergartenChildren}<select name="kindergartenChildCount" required>${Array.from({ length: pledgeRules.maxChildrenPerGroup + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select></label></div>
+          <h3>${labels.schoolChildren}</h3><div id="school-children"></div><h3>${labels.kindergartenChildren}</h3><div id="kindergarten-children"></div>
         </section>
 
-        <section class="card"><div class="section-heading"><span>02</span><div><p class="eyebrow">Care and participation</p><h2>Consents and commitments</h2></div></div>
-          ${checklist('Medical consent', 'medical', true)}
-          <fieldset id="eotc-school-consent" hidden><legend>School EOTC blanket consent for <span class="consent-names"></span></legend>
-            <label class="check"><input type="checkbox" name="eotcSchoolUnderstandsRisks" /> <span>I understand that risks are associated with EOTC activities and cannot be completely eliminated.</span></label>
-            <label class="check"><input type="checkbox" name="eotcSchoolHazardManagement" /> <span>I understand that the school will identify hazards and manage those risks.</span></label>
-            <label class="check"><input type="checkbox" name="eotcSchoolQuestions" /> <span>I understand that I can ask the school questions about activities.</span></label>
-          </fieldset>
-          <fieldset id="eotc-kindergarten-consent" hidden><legend>Kindergarten / Nursery EOTC blanket consent for <span class="consent-names"></span></legend>
-            <label class="check"><input type="checkbox" name="eotcKindergartenUnderstandsRisks" /> <span>I understand that risks are associated with EOTC activities and cannot be completely eliminated.</span></label>
-            <label class="check"><input type="checkbox" name="eotcKindergartenHazardManagement" /> <span>I understand that the school will identify hazards and manage those risks.</span></label>
-            <label class="check"><input type="checkbox" name="eotcKindergartenQuestions" /> <span>I understand that I can ask the school questions about activities.</span></label>
-          </fieldset>
-          ${checklist('Code of conduct and special character', 'conduct', true)}${checklist('Photo permissions', 'photos')}
-          ${field('Comments about care and participation', 'careComments', 'textarea')}
+        <section class="card">${sectionHead('02')}
+          ${checklist('medical', true)}
         </section>
 
-        <section class="card"><div class="section-heading"><span>03</span><div><p class="eyebrow">Contribution</p><h2>Our pledge for ${pledgeRules.year}</h2></div></div>
+        <section class="card">${sectionHead('03')}
+          <fieldset id="eotc-school-consent" hidden><legend>${eotcLegends.school} <span class="consent-names"></span></legend>
+            ${eotcStatements.map((text, index) => `<label class="check"><input type="checkbox" name="eotcSchool-${index}" /> <span>${text}</span></label>`).join('')}
+          </fieldset>
+          <fieldset id="eotc-kindergarten-consent" hidden><legend>${eotcLegends.kindergarten} <span class="consent-names"></span></legend>
+            ${eotcStatements.map((text, index) => `<label class="check"><input type="checkbox" name="eotcKindergarten-${index}" /> <span>${text}</span></label>`).join('')}
+          </fieldset>
+        </section>
+
+        <section class="card">${sectionHead('04')}
+          ${checklist('photos')}
+        </section>
+
+        <section class="card">${sectionHead('05')}
+          ${checklist('conduct', true)}
+        </section>
+
+        <section class="card">${sectionHead('06')}
           <p class="muted">The contribution is donation-based. Recommended amounts are guidance, not fees. Please contact the Trust Administrator if you need to discuss financial hardship.</p>
           <p class="rule-note">School pricing: ${pledgeRules.school.note}</p>
           <p class="rule-note">Kindergarten pricing: ${pledgeRules.kindergarten.note}</p>
-          ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">Recommended amounts cover ${weeksRemaining} of ${totalSchoolWeeks} weeks of the ${pledgeRules.year} school year.</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}<h3>Pledge amounts</h3><div class="amount-table"><div class="amount-head"><span>Student</span><span>Recommended</span><span>Agreed amount</span></div><div id="pledge-rows"></div></div>${field('Supplementary donation / pay it forward', 'supplementaryDonation', 'number', { min: 0 })}<h3>Disbursement amounts</h3><div class="amount-table"><div class="amount-head"><span>Student</span><span>Contribution</span><span>Amount</span></div><div id="disbursement-rows"></div></div>${field('Disbursement contribution', 'disbursement', 'number', { min: 0, readonly: true })}<p id="disbursement-note" class="muted"></p>
-           <div class="total-line">${field(`Total pledge for ${pledgeRules.year}`, 'totalPledge', 'number', { required: true, min: 0, readonly: true })}</div><div class="price-summary" aria-live="polite"><div><span>Per term</span><strong id="term-total">$0.00</strong><small>Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>Per week (calendar year)</span><strong id="week-total">$0.00</strong><small>Total divided by ${pledgeRules.weeksPerYear} weeks</small></div></div>
-           <fieldset><legend>Indicative payment plan</legend>${['Weekly', 'Fortnightly', 'Monthly', 'Termly', 'Lump sum'].map((label) => `<label class="check"><input type="radio" name="paymentPlan" value="${label}" required /> <span>${label}</span></label>`).join('')}</fieldset>
-           ${field('Pledge comments', 'pledgeComments', 'textarea')}
+          ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">${interpolate(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks, year: pledgeRules.year })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}<h3 class="amounts-heading">${labels.pledgeAmounts}</h3><div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="pledge-rows"></div></div>${field(labels.supplementaryDonation, 'supplementaryDonation', 'number', { min: 0 })}<h3 class="amounts-heading">${labels.disbursementAmounts}</h3><div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="disbursement-rows"></div></div>${field(labels.disbursementContribution, 'disbursement', 'number', { min: 0, readonly: true })}<p id="disbursement-note" class="muted"></p>
+           <div class="total-line">${field(interpolate(labels.totalPledge, { year: pledgeRules.year }), 'totalPledge', 'number', { required: true, min: 0, readonly: true })}</div><div class="price-summary" aria-live="polite"><div><span>${labels.perTerm}</span><strong id="term-total">$0.00</strong><small>Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>${labels.perWeek}</span><strong id="week-total">$0.00</strong><small>Total divided by ${pledgeRules.schoolYearWeeks} weeks of the school year</small></div></div>
+           <fieldset><legend>${labels.paymentPlan}</legend>${paymentPlanOptions.map((option) => `<label class="check"><input type="radio" name="paymentPlan" value="${option.label}" required /> <span>${option.label} <em class="plan-price" data-plan="${option.key}"></em></span></label>`).join('')}</fieldset>
+           ${field(labels.pledgeComments, 'pledgeComments', 'textarea')}
         </section>
 
-        <section class="card"><div class="section-heading"><span>04</span><div><p class="eyebrow">Be prepared</p><h2>Emergency contacts</h2></div></div>
+        <section class="card">${sectionHead('07')}
           <p class="muted">Please provide two people the school can contact in an emergency. Keep these details up to date throughout the year.</p>
-          <div class="emergency-contact"><h3>Contact 1</h3><div class="grid three">${field('Name', 'emergencyContact1Name', 'text', { required: true })}${field('Phone number', 'emergencyContact1Phone', 'tel', { required: true })}${field('Relationship', 'emergencyContact1Relationship', 'text', { required: true })}</div></div>
-          <div class="emergency-contact"><h3>Contact 2</h3><div class="grid three">${field('Name', 'emergencyContact2Name', 'text', { required: true })}${field('Phone number', 'emergencyContact2Phone', 'tel', { required: true })}${field('Relationship', 'emergencyContact2Relationship', 'text', { required: true })}</div></div>
-          ${field('Comments about emergency contacts', 'emergencyComments', 'textarea')}
+          <div class="emergency-contact"><h3>${interpolate(labels.emergencyContact, { n: 1 })}</h3><div class="grid three">${field(labels.emergencyName, 'emergencyContact1Name', 'text', { required: true })}${field(labels.emergencyPhone, 'emergencyContact1Phone', 'tel', { required: true })}${field(labels.emergencyRelationship, 'emergencyContact1Relationship', 'text', { required: true })}</div></div>
+          <div class="emergency-contact"><h3>${interpolate(labels.emergencyContact, { n: 2 })}</h3><div class="grid three">${field(labels.emergencyName, 'emergencyContact2Name', 'text', { required: true })}${field(labels.emergencyPhone, 'emergencyContact2Phone', 'tel', { required: true })}${field(labels.emergencyRelationship, 'emergencyContact2Relationship', 'text', { required: true })}</div></div>
+          ${field(labels.emergencyComments, 'emergencyComments', 'textarea')}
         </section>
 
-        <section class="card"><div class="section-heading"><span>05</span><div><p class="eyebrow">Family arrangements</p><h2>Custodial arrangements</h2></div></div>
-          <label class="check custody-toggle"><input type="checkbox" name="custodyApplies" /> <span>My children live across more than one household or have special custodial arrangements.</span></label>
+        <section class="card">${sectionHead('08')}
+          <label class="check custody-toggle"><input type="checkbox" name="custodyApplies" /> <span>${labels.custodyToggle}</span></label>
           <div id="custody-details" hidden>
             <input type="hidden" name="custodyArrangementCount" value="0" />
             <div id="custody-arrangements"></div>
-            <button type="button" id="add-custody-arrangement">Add another custodial arrangement</button>
+            <button type="button" id="add-custody-arrangement">${labels.custodyAddAnother}</button>
           </div>
         </section>
 
-        <section class="card sign-card"><div class="section-heading"><span>06</span><div><p class="eyebrow">Declaration</p><h2>Confirm and submit</h2></div></div>
+        <section class="card sign-card">${sectionHead('09')}
           <p>I confirm that the information above is correct and that I will advise the school of changes.</p>
-          ${field('Anything else to add?', 'anythingElseComments', 'textarea')}
+          ${field(labels.anythingElse, 'anythingElseComments', 'textarea')}
           <label class="honeypot" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
-          <div class="grid two">${field('Parent / guardian signature (typed)', 'signature', 'text', { required: true })}${field('Date', 'signatureDate', 'date', { required: true })}</div>
+          <div class="grid two">${field(labels.signature, 'signature', 'text', { required: true })}${field(labels.signatureDate, 'signatureDate', 'date', { required: true })}</div>
           <button class="submit" type="submit">Submit pledge <span>↗</span></button>
           <p class="fine-print">Submissions are sent securely to the school’s configured service.</p>
         </section>
       </form>
-      <footer><span>Whāngia te wairua o te tamaiti</span>${contactEmail ? `<a href="mailto:${contactEmail}">Questions? Contact the office</a>` : ''}</footer>
+      <footer>${contactEmail ? `<a href="mailto:${contactEmail}">Questions? Contact the office</a>` : ''}</footer>
     </div>`;
 }
 
@@ -396,9 +413,20 @@ function calculateTotals() {
   if (total) total.value = amountTotal + disbursementTotal + donation;
   const annualTotal = Number(total?.value || 0);
   const termTotal = annualTotal / pledgeRules.termsPerYear;
-  const weekTotal = annualTotal / pledgeRules.weeksPerYear;
+  const weekTotal = annualTotal / pledgeRules.schoolYearWeeks;
   document.querySelector('#term-total').textContent = money(termTotal);
   document.querySelector('#week-total').textContent = money(weekTotal);
+  const periodCounts = {
+    week: pledgeRules.schoolYearWeeks,
+    fortnight: Math.ceil(pledgeRules.schoolYearWeeks / 2),
+    month: schoolYearMonths,
+    term: pledgeRules.termsPerYear,
+    lump: 1,
+  };
+  paymentPlanOptions.forEach((option) => {
+    const planPrice = document.querySelector(`[data-plan="${option.key}"]`);
+    if (planPrice) planPrice.textContent = `(${money(annualTotal / periodCounts[option.key])})`;
+  });
 }
 
 async function submit(event) {

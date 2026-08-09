@@ -53,15 +53,3 @@ variable "create_app_registration" {
   type        = bool
   default     = true
 }
-
-variable "excel_workbook_path" {
-  description = "Drive-relative Graph path to the Excel workbook, e.g. drives/b!abc123/items/01XYZ (empty disables Excel logging)"
-  type        = string
-  default     = ""
-}
-
-variable "excel_table_name" {
-  description = "Name of the Excel table to append rows to (e.g. Pledges)"
-  type        = string
-  default     = "Pledges"
-}

@@ -22,6 +22,17 @@ resource "azurerm_storage_account" "functions" {
   min_tls_version          = "TLS1_2"
 }
 
+resource "azurerm_storage_container" "pledge_submissions" {
+  name                  = "pledge-submissions"
+  storage_account_name  = azurerm_storage_account.functions.name
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_table" "pledge_audit" {
+  name                 = "pledgeaudit"
+  storage_account_name = azurerm_storage_account.functions.name
+}
+
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "${local.name_prefix}-logs"
   location            = azurerm_resource_group.main.location
@@ -59,7 +70,7 @@ resource "azurerm_linux_function_app" "main" {
     application_insights_key               = azurerm_application_insights.main.instrumentation_key
     application_insights_connection_string = azurerm_application_insights.main.connection_string
     application_stack {
-      node_version = "20"
+      node_version = "22"
     }
     cors {
       allowed_origins = ["*"]
@@ -75,9 +86,14 @@ resource "azurerm_linux_function_app" "main" {
     "AZURE_TENANT_ID"          = data.azuread_client_config.current.tenant_id
     "AZURE_CLIENT_ID"          = var.create_app_registration ? azuread_application.pledge_email[0].client_id : ""
     "AZURE_CLIENT_SECRET"      = var.create_app_registration ? azuread_application_password.pledge_email[0].value : ""
-    "EXCEL_ENABLED"            = var.excel_workbook_path != "" ? "true" : "false"
-    "EXCEL_WORKBOOK_PATH"      = var.excel_workbook_path
-    "EXCEL_TABLE_NAME"         = var.excel_table_name
+    "SUBMISSIONS_CONTAINER"    = azurerm_storage_container.pledge_submissions.name
+    "SUBMISSIONS_TABLE"        = azurerm_storage_table.pledge_audit.name
+  }
+
+  lifecycle {
+    ignore_changes = [
+      app_settings["WEBSITE_RUN_FROM_PACKAGE"],
+    ]
   }
 }
 

@@ -16,12 +16,3 @@ email_admin = "school-admin@school.example"
 
 # Set to false if you want to create the app registration manually
 create_app_registration = true
-
-# Optional Excel logging. Leave empty to disable.
-# Find the values with Graph Explorer (logged in as the workbook owner):
-#   GET https://graph.microsoft.com/v1.0/me/drive/items/{itemId}?$select=id,name,parentReference
-# where {itemId} is the "sourcedoc" GUID from the workbook's SharePoint URL.
-# EXCEL_WORKBOOK_PATH is "drives/{driveId}/items/{itemId}" (e.g. drives/b!abc123/items/01XYZ).
-# The workbook must be an .xlsx file with a table named Pledges (82 columns).
-excel_workbook_path = ""
-excel_table_name    = "Pledges"
