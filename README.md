@@ -24,6 +24,8 @@ npm run build
 
 The generated `embed/pledge-form.html` contains the HTML, CSS and JavaScript in one self-contained file, ready to embed or publish.
 
+The pre-commit hook (Husky, installed by `npm install`) runs `npm run build` automatically and blocks the commit if `embed/pledge-form.html` is stale, so the tracked bundle never drifts from `src/`. The Release workflow runs the same check on every push to `main`.
+
 ## Embedding in Squarespace
 
 Copy the GitHub Raw link for `embed/pledge-form.html` and paste it into a Squarespace Code Block:

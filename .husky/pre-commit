@@ -1,0 +1,31 @@
+if ! git diff --cached --name-only | grep -Eq '^(src/|index\.html$|vite\.config\.js$|scripts/|package\.json$|package-lock\.json$)'; then
+  exit 0
+fi
+
+STASHED=0
+stashed_before=$(git stash list | wc -l)
+git stash push --keep-index --quiet -- src/ index.html vite.config.js scripts/ package.json package-lock.json 2>/dev/null || true
+if [ "$(git stash list | wc -l)" -gt "$stashed_before" ]; then
+  STASHED=1
+fi
+
+cleanup() {
+  if [ "$STASHED" = 1 ]; then
+    git stash pop --quiet
+  fi
+}
+trap cleanup EXIT
+
+if ! npm run build; then
+  echo "Pre-commit failed: npm run build errored."
+  exit 1
+fi
+
+if ! git diff --quiet -- embed/; then
+  echo ""
+  echo "Pre-commit failed: embed/pledge-form.html is out of date."
+  echo "npm run build regenerated it. Stage the rebuilt bundle and commit again:"
+  echo "  git add embed/pledge-form.html"
+  echo ""
+  exit 1
+fi
