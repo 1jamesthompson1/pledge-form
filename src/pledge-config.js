@@ -19,21 +19,29 @@ const kindergartenRecommendedByDays = {
   2: Math.round(kindergartenDailyRate * 2),
 };
 
+const schoolYearTerms = [
+  // Ministry of Education 2027 school terms (education.govt.nz/school-terms-and-holidays-dates).
+  // Schools choose their own Term 1 start (28 Jan – 3 Feb) and Term 4 end (no later than 17 Dec).
+  { start: '2027-01-27', end: '2027-04-09' },
+  { start: '2027-04-27', end: '2027-07-02' },
+  { start: '2027-07-19', end: '2027-09-24' },
+  { start: '2027-10-11', end: '2027-12-17' },
+];
+
+// Whole weeks spanning the school year, from the first term start to the last term end.
+const schoolYearWeeks = schoolYearTerms.length
+  ? Math.ceil((((new Date(`${schoolYearTerms.at(-1).end}T00:00:00`) - new Date(`${schoolYearTerms[0].start}T00:00:00`)) / 86400000) + 1) / 7)
+  : 52;
+
 export const pledgeRules = {
   year: 2027,
   maxChildrenPerGroup: 5,
   termsPerYear: 4,
   weeksPerYear: 52,
+  schoolYearWeeks,
   baseAmount,
-  // Ministry of Education 2027 school terms (education.govt.nz/school-terms-and-holidays-dates).
-  // Schools choose their own Term 1 start (28 Jan – 3 Feb) and Term 4 end (no later than 17 Dec).
   schoolYear: {
-    terms: [
-      { start: '2027-02-01', end: '2027-04-09' },
-      { start: '2027-04-27', end: '2027-07-02' },
-      { start: '2027-07-19', end: '2027-09-24' },
-      { start: '2027-10-11', end: '2027-12-17' },
-    ],
+    terms: schoolYearTerms,
   },
   school: {
     discountSchedule: schoolDiscountSchedule,

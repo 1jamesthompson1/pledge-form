@@ -1,0 +1,7 @@
+# Exclude the dev-only Functions CLI and test tooling from the deployment package
+azure-functions-core-tools/
+node_modules/azure-functions-core-tools/
+dist/
+out/
+.local
+*.log

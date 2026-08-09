@@ -1,0 +1,18 @@
+resource_group_name = "rg-te-ra-pledge-prod"
+location            = "Australia East"
+location_code       = "australiaeast"
+app_name            = "te-ra-pledge"
+environment         = "prod"
+
+# Consumption is cheapest but has cold starts.
+# Use PremiumV2 or PremiumV3 to avoid cold starts.
+function_plan_tier = "Consumption"
+
+# Licensed Microsoft 365 mailbox that the Function sends from
+email_sender = "notifications@school.example"
+
+# Optional school address to CC (can be any email at all)
+email_admin = "school-admin@school.example"
+
+# Set to false if you want to create the app registration manually
+create_app_registration = true
