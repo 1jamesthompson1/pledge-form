@@ -28,6 +28,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release
+      - name: Purge jsDelivr CDN cache
+        run: curl -sSf "https://purge.jsdelivr.net/gh/1jamesthompson1/pledge-form@main/embed/pledge-form.html"
 
   verify-functions:
     runs-on: ubuntu-latest
