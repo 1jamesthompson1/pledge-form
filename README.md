@@ -101,6 +101,8 @@ The optional Azure Functions backend lives in `functions/`. It receives the subm
 
 The `infra/` folder contains OpenTofu (Terraform-compatible) configuration to provision the Azure Function App, storage, Application Insights, and the Microsoft Entra app registration for Graph email. See `infra/README.md` for usage.
 
+Alternatively, a lightweight Power Automate workflow can serve as the backend.
+
 ## Pricing rules
 
 The editable pledge pricing rules are in `src/pledge-config.js`. This includes the year, school recommendations, kindergarten day rates, the per-child disbursement amount, four terms per year, and the school-year term dates. The form calculates annual, per-term, and per-week totals from those values — per week uses the whole weeks spanning the school year (first term start to last term end, e.g. 46 weeks for 2027) rather than 52 calendar weeks. The payment plan is indicative only, showing the per-period price for each option (weekly, fortnightly, monthly, termly or lump sum) based on the current total.
@@ -129,4 +131,8 @@ fix: preserve radio button drafts
 docs: clarify embedding setup
 ```
 
-Pushes to `main` run lint and build, then semantic-release creates a semantic GitHub Release. A `feat` produces a minor release, `fix` produces a patch release, and `BREAKING CHANGE:` produces a major release. The release is created by CI; the built `embed/pledge-form.html` is committed to the repo rather than uploaded as a release asset.
+Pushes to `main` run lint and build, then semantic-release creates a semantic GitHub Release and attaches the bundled `te-ra-pledge-form.html`. The built `embed/pledge-form.html` is committed to the repo rather than uploaded as a release asset. A `feat` produces a minor release, `fix` produces a patch release, and `BREAKING CHANGE:` produces a major release.
+
+## GitHub Pages
+
+When a release is published, the `Deploy to GitHub Pages` workflow builds the form and deploys it as a static site at `https://tera-pledge-form.sjhl.nz`. The static site is the same single-file form, so configure it the same way (e.g. with the `endpoint` query string or a `window.PLEDGE_CONFIG` snippet in the head).

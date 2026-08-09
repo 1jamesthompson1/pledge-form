@@ -5,6 +5,8 @@ dist/
 .env.local
 .env.*.local
 
+workspace/**
+
 # Azure Functions
 functions/.vscode/
 functions/bin/
@@ -22,3 +24,7 @@ infra/*.tfstate
 infra/*.tfstate.*
 infra/terraform.tfvars
 infra/tfplan
+
+# Power Automate flow (contains the email recipient; never commit)
+flow/.env
+flow/dist/
