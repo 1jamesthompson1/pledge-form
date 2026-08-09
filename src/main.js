@@ -99,7 +99,7 @@ function applyStartDate(value) {
 
 function field(label, name, type = 'text', options = {}) {
   const control = type === 'textarea'
-    ? `<textarea name="${name}" rows="4" ${options.required ? 'required' : ''}></textarea>`
+    ? `<textarea name="${name}" rows="2" ${options.required ? 'required' : ''}></textarea>`
     : `<input name="${name}" type="${type}" ${options.required ? 'required' : ''} ${options.readonly ? 'readonly' : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} ${options.max !== undefined ? `max="${options.max}"` : ''} />`;
   return `<label><span class="field-label">${label}${options.required ? ' <span aria-hidden="true">*</span>' : ''}</span>${control}</label>`;
 }
