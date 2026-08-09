@@ -61,6 +61,8 @@ Add `?dev=1` to the URL to pre-fill the form with sample data. This is useful fo
 https://example.org/te-ra-pledge-form.html?dev=1&endpoint=https%3A%2F%2Fapi.example.org%2Fpledges
 ```
 
+The sample data is committed as `src/example-data.json`. The same file doubles as an example of the submission payload: the `form` object is exactly what the browser serializes and POSTs, and `submittedAt` / `timeOnPageMs` show the metadata added alongside it. The backend receives `{ form, submittedAt, timeOnPageMs, startDate? }` — see `functions/src/functions/pledgeReceiver.js` for how it is validated and stored.
+
 ## Backend
 
 The optional Azure Functions backend lives in `functions/`. It receives the submitted pledge at `POST /api/pledges`, validates it, and optionally sends a notification email via Microsoft Graph. See `functions/README.md` for local development and deployment instructions.

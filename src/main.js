@@ -1,5 +1,6 @@
 import './style.css';
 import { money, pledgeRules } from './pledge-config.js';
+import examplePledge from './example-data.json';
 
 const STORAGE_KEY = `te-ra-pledge-form:${pledgeRules.year}`;
 const consentGroups = {
@@ -15,12 +16,6 @@ const consentGroups = {
     'Respect and adhere to the school values and special character.',
     'Use digital technology and social media safely and responsibly.',
     'Act in accordance with school rules, procedures and legal obligations.',
-  ],
-  eotc: [
-    'I agree to my child taking part in local walks.',
-    'I understand that risks are associated with EOTC activities and cannot be completely eliminated.',
-    'I understand that the school will identify hazards and manage those risks.',
-    'I understand that I can ask the school questions about activities.',
   ],
   photos: [
     'My child may be photographed at school, kindergarten / nursery and EOTC events.',
@@ -166,6 +161,38 @@ function syncLinkedNames() {
     const source = document.querySelector(`[name="${element.dataset.source}"]`);
     element.textContent = source?.value.trim() || 'Unnamed child';
   });
+  updateEotcConsentLabels();
+}
+
+function updateEotcConsentLabels() {
+  const form = document.querySelector('#pledge-form');
+  const count = (kind) => Number(form.querySelector(`[name="${kind}ChildCount"]`)?.value || 0);
+  const namesFor = (kind) => Array.from({ length: count(kind) }, (_, index) => {
+    const name = form.querySelector(`[name="${kind}${index + 1}Name"]`)?.value.trim();
+    return name || `${kind === 'school' ? 'School' : 'Kindergarten / Nursery'} child ${index + 1}`;
+  });
+  const list = (items) => items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : (items[0] || '');
+  ['school', 'kindergarten'].forEach((kind) => {
+    const fieldset = document.querySelector(`#eotc-${kind}-consent`);
+    if (!fieldset) return;
+    const names = namesFor(kind);
+    const namesSpan = fieldset.querySelector('.consent-names');
+    const checkboxes = fieldset.querySelectorAll('input[type="checkbox"]');
+    if (!names.length) {
+      fieldset.hidden = true;
+      checkboxes.forEach((checkbox) => {
+        checkbox.required = false;
+        checkbox.disabled = true;
+      });
+      return;
+    }
+    fieldset.hidden = false;
+    checkboxes.forEach((checkbox) => {
+      checkbox.required = true;
+      checkbox.disabled = false;
+    });
+    if (namesSpan) namesSpan.textContent = list(names);
+  });
 }
 
 function updateCustodySection() {
@@ -226,7 +253,19 @@ function render() {
         </section>
 
         <section class="card"><div class="section-heading"><span>02</span><div><p class="eyebrow">Care and participation</p><h2>Consents and commitments</h2></div></div>
-          ${checklist('Medical consent', 'medical', true)}${checklist('EOTC blanket consent for local walks', 'eotc', true)}${checklist('Code of conduct and special character', 'conduct', true)}
+          ${checklist('Medical consent', 'medical', true)}
+          <fieldset id="eotc-school-consent" hidden><legend>School EOTC blanket consent for <span class="consent-names"></span></legend>
+            <label class="check"><input type="checkbox" name="eotcSchoolUnderstandsRisks" /> <span>I understand that risks are associated with EOTC activities and cannot be completely eliminated.</span></label>
+            <label class="check"><input type="checkbox" name="eotcSchoolHazardManagement" /> <span>I understand that the school will identify hazards and manage those risks.</span></label>
+            <label class="check"><input type="checkbox" name="eotcSchoolQuestions" /> <span>I understand that I can ask the school questions about activities.</span></label>
+          </fieldset>
+          <fieldset id="eotc-kindergarten-consent" hidden><legend>Kindergarten / Nursery EOTC blanket consent for <span class="consent-names"></span></legend>
+            <label class="check"><input type="checkbox" name="eotcKindergartenUnderstandsRisks" /> <span>I understand that risks are associated with EOTC activities and cannot be completely eliminated.</span></label>
+            <label class="check"><input type="checkbox" name="eotcKindergartenHazardManagement" /> <span>I understand that the school will identify hazards and manage those risks.</span></label>
+            <label class="check"><input type="checkbox" name="eotcKindergartenQuestions" /> <span>I understand that I can ask the school questions about activities.</span></label>
+          </fieldset>
+          ${checklist('Code of conduct and special character', 'conduct', true)}${checklist('Photo permissions', 'photos')}
+          ${field('Comments about care and participation', 'careComments', 'textarea')}
         </section>
 
         <section class="card"><div class="section-heading"><span>03</span><div><p class="eyebrow">Contribution</p><h2>Our pledge for ${pledgeRules.year}</h2></div></div>
@@ -239,15 +278,14 @@ function render() {
            ${field('Pledge comments', 'pledgeComments', 'textarea')}
         </section>
 
-        <section class="card"><div class="section-heading"><span>04</span><div><p class="eyebrow">Communication</p><h2>Photo permissions</h2></div></div>${checklist('Please choose any permissions that apply', 'photos')}</section>
-
-        <section class="card"><div class="section-heading"><span>05</span><div><p class="eyebrow">Be prepared</p><h2>Emergency contacts</h2></div></div>
+        <section class="card"><div class="section-heading"><span>04</span><div><p class="eyebrow">Be prepared</p><h2>Emergency contacts</h2></div></div>
           <p class="muted">Please provide two people the school can contact in an emergency. Keep these details up to date throughout the year.</p>
           <div class="emergency-contact"><h3>Contact 1</h3><div class="grid three">${field('Name', 'emergencyContact1Name', 'text', { required: true })}${field('Phone number', 'emergencyContact1Phone', 'tel', { required: true })}${field('Relationship', 'emergencyContact1Relationship', 'text', { required: true })}</div></div>
           <div class="emergency-contact"><h3>Contact 2</h3><div class="grid three">${field('Name', 'emergencyContact2Name', 'text', { required: true })}${field('Phone number', 'emergencyContact2Phone', 'tel', { required: true })}${field('Relationship', 'emergencyContact2Relationship', 'text', { required: true })}</div></div>
+          ${field('Comments about emergency contacts', 'emergencyComments', 'textarea')}
         </section>
 
-        <section class="card"><div class="section-heading"><span>06</span><div><p class="eyebrow">Family arrangements</p><h2>Custodial arrangements</h2></div></div>
+        <section class="card"><div class="section-heading"><span>05</span><div><p class="eyebrow">Family arrangements</p><h2>Custodial arrangements</h2></div></div>
           <label class="check custody-toggle"><input type="checkbox" name="custodyApplies" /> <span>My children live across more than one household or have special custodial arrangements.</span></label>
           <div id="custody-details" hidden>
             <input type="hidden" name="custodyArrangementCount" value="0" />
@@ -256,8 +294,9 @@ function render() {
           </div>
         </section>
 
-        <section class="card sign-card"><div class="section-heading"><span>07</span><div><p class="eyebrow">Declaration</p><h2>Confirm and submit</h2></div></div>
+        <section class="card sign-card"><div class="section-heading"><span>06</span><div><p class="eyebrow">Declaration</p><h2>Confirm and submit</h2></div></div>
           <p>I confirm that the information above is correct and that I will advise the school of changes.</p>
+          ${field('Anything else to add?', 'anythingElseComments', 'textarea')}
           <label class="honeypot" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
           <div class="grid two">${field('Parent / guardian signature (typed)', 'signature', 'text', { required: true })}${field('Date', 'signatureDate', 'date', { required: true })}</div>
           <button class="submit" type="submit">Submit pledge <span>↗</span></button>
@@ -435,58 +474,28 @@ document.querySelector('#custody-arrangements')?.addEventListener('click', (even
 });
 
 function loadDevAnswers() {
-  const set = (name, value) => {
-    const input = document.querySelector(`[name="${name}"]`);
-    if (input) {
+  const form = document.querySelector('#pledge-form');
+  const apply = (name, value) => {
+    const input = form.querySelector(`[name="${name}"]`);
+    if (!input) return;
+    if (input.type === 'checkbox') {
+      input.checked = value === 'on';
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (input.type === 'radio') {
+      const radio = form.querySelector(`[name="${name}"][value="${value}"]`);
+      if (radio) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    } else if (input.type === 'number') {
+      input.value = value;
+    } else {
       input.value = value;
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
     }
   };
-  const check = (name) => {
-    const input = document.querySelector(`[name="${name}"]`);
-    if (input) {
-      input.checked = true;
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-  };
-  const selectRadio = (name, value) => {
-    const input = document.querySelector(`[name="${name}"][value="${value}"]`);
-    if (input) {
-      input.checked = true;
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-  };
-
-  set('parentName', 'Test Parent');
-  set('email', 'test@example.com');
-  set('schoolChildCount', '2');
-  set('kindergartenChildCount', '1');
-
-  set('school1Name', 'School Child One');
-  set('school1Class', '1');
-  set('school2Name', 'School Child Two');
-  set('school2Class', '2');
-  set('kindergarten1Name', 'Kindy Child');
-  set('kindergarten1Age', '4');
-  set('kindergarten1Days', '3');
-
-  ['medical', 'eotc', 'conduct'].forEach((key) => {
-    consentGroups[key].forEach((_, index) => check(`${key}-${index}`));
-  });
-
-  selectRadio('paymentPlan', 'Monthly');
-
-  set('emergencyContact1Name', 'Emergency One');
-  set('emergencyContact1Phone', '021 000 0001');
-  set('emergencyContact1Relationship', 'Aunt');
-  set('emergencyContact2Name', 'Emergency Two');
-  set('emergencyContact2Phone', '021 000 0002');
-  set('emergencyContact2Relationship', 'Uncle');
-
-  set('signature', 'Test Signature');
-  set('signatureDate', new Date().toISOString().split('T')[0]);
-
+  Object.entries(examplePledge.form).forEach(([name, value]) => apply(name, value));
   calculateTotals();
   saveDraft();
 }
