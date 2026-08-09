@@ -1,6 +1,6 @@
 resource_group_name = "rg-te-ra-pledge-prod"
-location            = "New Zealand North"
-location_code       = "newzealandnorth"
+location            = "Australia East"
+location_code       = "australiaeast"
 app_name            = "te-ra-pledge"
 environment         = "prod"
 
@@ -9,10 +9,19 @@ environment         = "prod"
 function_plan_tier = "Consumption"
 
 # Licensed Microsoft 365 mailbox that the Function sends from
-email_sender = "notifications@tera.school.nz"
+email_sender = "notifications@school.example"
 
-# Optional school office address to CC
-email_admin = "office@tera.school.nz"
+# Optional school address to CC (can be any email at all)
+email_admin = "school-admin@school.example"
 
 # Set to false if you want to create the app registration manually
 create_app_registration = true
+
+# Optional Excel logging. Leave empty to disable.
+# Find the values with Graph Explorer (logged in as the workbook owner):
+#   GET https://graph.microsoft.com/v1.0/me/drive/items/{itemId}?$select=id,name,parentReference
+# where {itemId} is the "sourcedoc" GUID from the workbook's SharePoint URL.
+# EXCEL_WORKBOOK_PATH is "drives/{driveId}/items/{itemId}" (e.g. drives/b!abc123/items/01XYZ).
+# The workbook must be an .xlsx file with a table named Pledges (82 columns).
+excel_workbook_path = ""
+excel_table_name    = "Pledges"

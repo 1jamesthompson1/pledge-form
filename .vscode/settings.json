@@ -5,5 +5,14 @@
     "azureFunctions.projectRuntime": "~4",
     "debug.internalConsoleOptions": "neverOpen",
     "azureFunctions.projectLanguageModel": 4,
-    "azureFunctions.preDeployTask": "npm prune (functions)"
+    "azureFunctions.preDeployTask": "npm prune (functions)",
+    "terminal.integrated.env.linux": {
+        "AZURE_CONFIG_DIR": "${env:HOME}/.azure/pledge-form"
+    },
+    "terminal.integrated.env.osx": {
+        "AZURE_CONFIG_DIR": "${env:HOME}/.azure/pledge-form"
+    },
+    "terminal.integrated.env.windows": {
+        "AZURE_CONFIG_DIR": "${env:USERPROFILE}\\.azure\\pledge-form"
+    }
 }

@@ -9,10 +9,10 @@ const tableName = process.env.EXCEL_TABLE_NAME || 'Pledges';
 const MAX_CHILDREN_PER_GROUP = 5;
 
 const CONSENT_GROUPS = [
-  ['Medical consent', 'medical'],
-  ['Conduct consent', 'conduct'],
-  ['EOTC consent', 'eotc'],
-  ['Photos consent', 'photos'],
+  ['Medical consent', 'medical', 4],
+  ['Conduct consent', 'conduct', 5],
+  ['EOTC consent', 'eotc', 4],
+  ['Photos consent', 'photos', 3],
 ];
 
 function buildColumns() {
@@ -27,6 +27,7 @@ function buildColumns() {
     'Disbursement total',
     'Supplementary donation',
     'Payment plan',
+    'Pledge comments',
     'Signature',
     'Signature date',
   ];
@@ -58,8 +59,8 @@ function buildColumns() {
     );
   }
 
-  for (const [label, key] of CONSENT_GROUPS) {
-    for (let i = 0; i < 4; i++) {
+  for (const [label, key, count] of CONSENT_GROUPS) {
+    for (let i = 0; i < count; i++) {
       cols.push(`${label} ${i + 1}`);
     }
   }
@@ -87,13 +88,15 @@ function custodyDetails(pledge) {
     parts.push(
       `Arrangement ${i + 1}: children [${children.join(', ') || 'none'}]; ` +
       `living arrangements: ${pledge[`custody-${i}-livingArrangements`] || ''}; ` +
-      `legal restrictions: ${pledge[`custody-${i}-legalRestrictions`] || ''}`,
+      `legal restrictions: ${pledge[`custody-${i}-legalRestrictions`] || ''}; ` +
+      `financial arrangements: ${pledge[`custody-${i}-financialArrangements`] || ''}; ` +
+      `further details: ${pledge[`custody-${i}-explanation`] || ''}`,
     );
   }
   return parts.join(' || ');
 }
 
-function toRow(pledge) {
+export function toRow(pledge) {
   const values = [];
   const push = (v) => values.push(v === undefined || v === null ? '' : v);
 
@@ -107,6 +110,7 @@ function toRow(pledge) {
   push(Number(pledge.disbursement) || 0);
   push(Number(pledge.supplementaryDonation) || 0);
   push(pledge.paymentPlan || '');
+  push(pledge.pledgeComments || '');
   push(pledge.signature);
   push(pledge.signatureDate);
 
@@ -131,8 +135,8 @@ function toRow(pledge) {
     push(pledge[`emergencyContact${i}Relationship`]);
   }
 
-  for (const [, key] of CONSENT_GROUPS) {
-    for (let i = 0; i < 4; i++) {
+  for (const [, key, count] of CONSENT_GROUPS) {
+    for (let i = 0; i < count; i++) {
       push(yesNo(pledge[`${key}-${i}`]));
     }
   }

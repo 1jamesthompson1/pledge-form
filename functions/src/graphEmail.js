@@ -33,6 +33,11 @@ export async function sendPledgeNotification(pledge, pdfBuffer) {
   const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
   const token = await credential.getToken('https://graph.microsoft.com/.default');
 
+  const adminEmail = process.env.EMAIL_ADMIN;
+  if (!adminEmail) {
+    throw new Error('EMAIL_ADMIN is not configured — every pledge email must go to the school');
+  }
+
   const message = {
     subject: `New pledge submission from ${pledge.parentName}`,
     body: {
@@ -45,11 +50,17 @@ export async function sendPledgeNotification(pledge, pdfBuffer) {
     toRecipients: [
       {
         emailAddress: {
+          address: adminEmail,
+        },
+      },
+    ],
+    ccRecipients: [
+      {
+        emailAddress: {
           address: pledge.email,
         },
       },
     ],
-    saveToSentItems: 'true',
   };
 
   if (pdfBuffer) {
@@ -63,24 +74,13 @@ export async function sendPledgeNotification(pledge, pdfBuffer) {
     ];
   }
 
-  const adminEmail = process.env.EMAIL_ADMIN;
-  if (adminEmail) {
-    message.ccRecipients = [
-      {
-        emailAddress: {
-          address: adminEmail,
-        },
-      },
-    ];
-  }
-
   const response = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sender)}/sendMail`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token.token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, saveToSentItems: true }),
   });
 
   if (!response.ok) {

@@ -43,7 +43,7 @@ variable "email_sender" {
 }
 
 variable "email_admin" {
-  description = "Optional school office address to CC"
+  description = "School office address that receives every pledge email (parent is CC'd)"
   type        = string
   default     = ""
 }

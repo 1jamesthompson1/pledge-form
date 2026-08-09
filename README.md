@@ -34,7 +34,7 @@ The `Release` workflow checks and publishes semantic releases. `npm run build` g
 
 ## Runtime configuration
 
-No endpoint or contact email is hardcoded. Before the bundled script runs, set both values on `window.PLEDGE_CONFIG`:
+No endpoint or contact email is hardcoded. Before the bundled script runs, set both values on `window.PLEDGE_CONFIG`. The contact email is optional — without it the "Questions? Contact the office" footer link is omitted. The `submitUrl` is required for submissions to work:
 
 ```html
 <script>

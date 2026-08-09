@@ -7,8 +7,14 @@ resource "azurerm_resource_group" "main" {
   location = var.location
 }
 
+resource "random_string" "storage_suffix" {
+  length  = 6
+  upper   = false
+  special = false
+}
+
 resource "azurerm_storage_account" "functions" {
-  name                     = "${lower(var.app_name)}func${var.environment}"
+  name                     = "${replace(lower(var.app_name), "-", "")}func${replace(lower(var.environment), "-", "")}${random_string.storage_suffix.result}"
   resource_group_name      = azurerm_resource_group.main.name
   location                 = azurerm_resource_group.main.location
   account_tier             = "Standard"

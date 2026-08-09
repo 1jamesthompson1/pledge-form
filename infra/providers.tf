@@ -10,6 +10,14 @@ terraform {
       source  = "hashicorp/azuread"
       version = "~> 2.53"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.12"
+    }
   }
 }
 

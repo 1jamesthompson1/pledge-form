@@ -26,7 +26,7 @@ const consentGroups = {
 
 const app = document.querySelector('#app');
 const userEditedAmounts = new Set();
-const contactEmail = window.PLEDGE_CONFIG?.contactEmail || 'office@tera.school.nz';
+const contactEmail = window.PLEDGE_CONFIG?.contactEmail;
 const FORM_LOAD_TIME = Date.now();
 const MIN_FILL_TIME_MS = 5000;
 const isDev = window.PLEDGE_CONFIG?.dev === true;
@@ -303,7 +303,7 @@ function render() {
           <p class="fine-print">Submissions are sent securely to the school’s configured service.</p>
         </section>
       </form>
-      <footer><span>Whāngia te wairua o te tamaiti</span><a href="mailto:${contactEmail}">Questions? Contact the office</a></footer>
+      <footer><span>Whāngia te wairua o te tamaiti</span>${contactEmail ? `<a href="mailto:${contactEmail}">Questions? Contact the office</a>` : ''}</footer>
     </div>`;
 }
 

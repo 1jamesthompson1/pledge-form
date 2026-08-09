@@ -51,7 +51,7 @@ The formatted pledge PDF (via `src/pledgePdf.js`) can be saved to disk for inspe
 
 ```sh
 cd functions
-func azure functionapp publish <your-function-app-name>
+npx func azure functionapp publish <your-function-app-name>
 ```
 
 3. Configure the required app settings in the Azure portal (do not commit real secrets):
@@ -60,7 +60,7 @@ func azure functionapp publish <your-function-app-name>
 |---|---|
 | `EMAIL_ENABLED` | `true` to send emails, `false` to skip |
 | `EMAIL_SENDER` | Email address to send from (must be a licensed mailbox) |
-| `EMAIL_ADMIN` | Optional school office address to CC on every pledge email |
+| `EMAIL_ADMIN` | School office address that receives every pledge email (parent is CC'd); required for email to go to the school |
 | `PDF_SAVE_DIR` | Local-only demo: directory to write a copy of the formatted pledge PDF (leave unset in Azure) |
 | `AZURE_TENANT_ID` | Microsoft Entra tenant ID |
 | `AZURE_CLIENT_ID` | App registration client ID |
@@ -100,14 +100,14 @@ The optional email sender uses the Microsoft Graph API with an app registration.
    |---|---|
    | `EMAIL_ENABLED` | `true` |
    | `EMAIL_SENDER` | the sender email address |
-   | `EMAIL_ADMIN` | optional school office address to CC |
+   | `EMAIL_ADMIN` | school office address that receives the pledge email |
    | `AZURE_TENANT_ID` | your tenant ID |
    | `AZURE_CLIENT_ID` | your app registration client ID |
    | `AZURE_CLIENT_SECRET` | your client secret |
 
 7. **Restart the Function App** and submit a test pledge.
 
-The Function will send an email to the parent/guardian address from the form payload, using the configured sender mailbox. A **PDF of the pledge is generated and attached** to every email (`src/pledgePdf.js`, pdfkit) — the school sees the full form including all children, amounts, custody arrangements, and signature.
+The Function sends an email to the `EMAIL_ADMIN` school address (CC'ing the parent/guardian address from the form payload), using the configured sender mailbox. A **PDF of the pledge is generated and attached** to every email (`src/pledgePdf.js`, pdfkit) — the school sees the full form including all children, amounts, custody arrangements, and signature. If `EMAIL_ADMIN` is unset, the send fails with an error and the endpoint returns 502 — there is no fallback to sending only to the parent.
 
 ## Payload format
 
@@ -121,10 +121,10 @@ The optional Excel logger appends every submission as a row to a real `.xlsx` wo
 
 1. **Add the `Files.ReadWrite.All` (application) permission** to the same app registration and grant admin consent (if using the Terraform config, it is included automatically).
 
-2. **Create the workbook**: in Excel Online/desktop, create a file with these column headers in this exact order (81 columns — the canonical list is defined in `src/graphExcel.js` as `EXCEL_COLUMNS`):
+2. **Create the workbook**: in Excel Online/desktop, create a file with these column headers in this exact order (82 columns — the canonical list is defined in `src/graphExcel.js` as `EXCEL_COLUMNS`):
 
    ```
-   Parent / guardian name | Email address | Submitted at | Start date | School children count | Kindergarten / Nursery children count | Total pledge | Disbursement total | Supplementary donation | Payment plan | Signature | Signature date | School child 1 name | School child 1 class | School child 1 amount | School child 1 disbursement | School child 2 name | School child 2 class | School child 2 amount | School child 2 disbursement | School child 3 name | School child 3 class | School child 3 amount | School child 3 disbursement | School child 4 name | School child 4 class | School child 4 amount | School child 4 disbursement | School child 5 name | School child 5 class | School child 5 amount | School child 5 disbursement | Kindergarten child 1 name | Kindergarten child 1 age | Kindergarten child 1 days/week | Kindergarten child 1 amount | Kindergarten child 1 disbursement | Kindergarten child 2 name | Kindergarten child 2 age | Kindergarten child 2 days/week | Kindergarten child 2 amount | Kindergarten child 2 disbursement | Kindergarten child 3 name | Kindergarten child 3 age | Kindergarten child 3 days/week | Kindergarten child 3 amount | Kindergarten child 3 disbursement | Kindergarten child 4 name | Kindergarten child 4 age | Kindergarten child 4 days/week | Kindergarten child 4 amount | Kindergarten child 4 disbursement | Kindergarten child 5 name | Kindergarten child 5 age | Kindergarten child 5 days/week | Kindergarten child 5 amount | Kindergarten child 5 disbursement | Emergency contact 1 name | Emergency contact 1 phone | Emergency contact 1 relationship | Emergency contact 2 name | Emergency contact 2 phone | Emergency contact 2 relationship | Medical consent 1 | Medical consent 2 | Medical consent 3 | Medical consent 4 | Conduct consent 1 | Conduct consent 2 | Conduct consent 3 | Conduct consent 4 | EOTC consent 1 | EOTC consent 2 | EOTC consent 3 | EOTC consent 4 | Photos consent 1 | Photos consent 2 | Photos consent 3 | Photos consent 4 | Custody arrangements apply | Custody details
+   Parent / guardian name | Email address | Submitted at | Start date | School children count | Kindergarten / Nursery children count | Total pledge | Disbursement total | Supplementary donation | Payment plan | Pledge comments | Signature | Signature date | School child 1 name | School child 1 class | School child 1 amount | School child 1 disbursement | School child 2 name | School child 2 class | School child 2 amount | School child 2 disbursement | School child 3 name | School child 3 class | School child 3 amount | School child 3 disbursement | School child 4 name | School child 4 class | School child 4 amount | School child 4 disbursement | School child 5 name | School child 5 class | School child 5 amount | School child 5 disbursement | Kindergarten child 1 name | Kindergarten child 1 age | Kindergarten child 1 days/week | Kindergarten child 1 amount | Kindergarten child 1 disbursement | Kindergarten child 2 name | Kindergarten child 2 age | Kindergarten child 2 days/week | Kindergarten child 2 amount | Kindergarten child 2 disbursement | Kindergarten child 3 name | Kindergarten child 3 age | Kindergarten child 3 days/week | Kindergarten child 3 amount | Kindergarten child 3 disbursement | Kindergarten child 4 name | Kindergarten child 4 age | Kindergarten child 4 days/week | Kindergarten child 4 amount | Kindergarten child 4 disbursement | Kindergarten child 5 name | Kindergarten child 5 age | Kindergarten child 5 days/week | Kindergarten child 5 amount | Kindergarten child 5 disbursement | Emergency contact 1 name | Emergency contact 1 phone | Emergency contact 1 relationship | Emergency contact 2 name | Emergency contact 2 phone | Emergency contact 2 relationship | Medical consent 1 | Medical consent 2 | Medical consent 3 | Medical consent 4 | Conduct consent 1 | Conduct consent 2 | Conduct consent 3 | Conduct consent 4 | Conduct consent 5 | EOTC consent 1 | EOTC consent 2 | EOTC consent 3 | EOTC consent 4 | Photos consent 1 | Photos consent 2 | Photos consent 3 | Custody arrangements apply | Custody details
    ```
 
    Select the header row + data area → **Insert → Table** → name it `Pledges` (or your `EXCEL_TABLE_NAME`). Save the file to OneDrive/SharePoint. Cells for children not added to the form are written as blanks.
