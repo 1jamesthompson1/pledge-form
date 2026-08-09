@@ -24,6 +24,8 @@ jobs:
         run: npm ci
       - name: Verify
         run: npm run lint && npm run build
+      - name: Verify embed bundle is up to date
+        run: git diff --exit-code -- embed/
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
