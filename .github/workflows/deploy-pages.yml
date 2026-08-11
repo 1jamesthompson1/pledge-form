@@ -32,7 +32,7 @@ jobs:
       - name: Stage site
         run: |
           mkdir -p pages
-          cp embed/pledge-form.html pages/index.html
+          cp dist/index.html pages/index.html
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
