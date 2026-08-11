@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
 
 permissions:
   contents: write
@@ -24,33 +24,28 @@ jobs:
         run: npm ci
       - name: Verify
         run: npm run lint && npm run build
-      - name: Create release
+      - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "before_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo '')" >> "$GITHUB_ENV"
-          npm run release
-      - name: Deploy bundle to release branch and release asset
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --generate-notes
+          fi
+      - name: Publish bundle to release branch and asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npm run build
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch --tags --force origin
-          NEW_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           cp dist/index.html /tmp/pledge-form.html
           git checkout --orphan release
           git rm -rf --quiet .
           cp /tmp/pledge-form.html pledge-form.html
           git add pledge-form.html
-          git commit -m "chore: publish pledge-form.html from ${GITHUB_SHA::8}"
+          git commit -m "chore: publish $GITHUB_REF_NAME from ${GITHUB_SHA::8}"
           git push --force origin release
-          if [ -n "$NEW_TAG" ] && [ "$NEW_TAG" != "$before_tag" ]; then
-            gh release upload "$NEW_TAG" /tmp/pledge-form.html#te-ra-pledge-form.html --clobber
-          fi
-      - name: Purge jsDelivr CDN cache
-        run: curl -sSf "https://purge.jsdelivr.net/gh/1jamesthompson1/pledge-form@release/pledge-form.html"
+          gh release upload "$GITHUB_REF_NAME" /tmp/pledge-form.html#te-ra-pledge-form.html --clobber
+          curl -sSf "https://purge.jsdelivr.net/gh/1jamesthompson1/pledge-form@release/pledge-form.html"
 
   verify-functions:
     runs-on: ubuntu-latest

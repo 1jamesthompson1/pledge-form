@@ -17,6 +17,7 @@ functions/src/pledgeConfig.js
 functions/src/formDefinition.js
 functions/src/pledgeForm.html
 *.log
+*.tgz
 
 # OpenTofu / Terraform
 infra/.terraform/
