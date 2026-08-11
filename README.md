@@ -22,20 +22,18 @@ Build the self-contained file with:
 npm run build
 ```
 
-The generated `embed/pledge-form.html` contains the HTML, CSS and JavaScript in one self-contained file, ready to embed or publish.
-
-The pre-commit hook (Husky, installed by `npm install`) runs `npm run build` automatically and blocks the commit if `embed/pledge-form.html` is stale, so the tracked bundle never drifts from `src/`. The Release workflow runs the same check on every push to `main`.
+The generated `dist/index.html` contains the HTML, CSS and JavaScript in one self-contained file. It is git-ignored (the dev build stays local) and is not committed to `main` — the Release workflow builds it on every push and publishes it to the `release` branch as `pledge-form.html` for jsDelivr delivery (see below).
 
 ## Embedding in Squarespace
 
-Copy the GitHub Raw link for `embed/pledge-form.html` and paste it into a Squarespace Code Block:
+Copy the GitHub Raw link for `pledge-form.html` from the `release` branch and paste it into a Squarespace Code Block:
 
-Copy from this [url](https://raw.githubusercontent.com/1jamesthompson1/pledge-form/refs/heads/main/embed/pledge-form.html)
+Copy from this [url](https://raw.githubusercontent.com/1jamesthompson1/pledge-form/release/pledge-form.html)
 
 ### Always up to date: no more copy and paste
 
 Alternatively, paste this Code Block **once**. It fetches the latest
-`embed/pledge-form.html` from the jsDelivr CDN at runtime and injects it
+`pledge-form.html` from the jsDelivr CDN at runtime and injects it
 directly into the page — no iframe, and future releases update automatically:
 
 ```html
@@ -44,7 +42,7 @@ directly into the page — no iframe, and future releases update automatically:
   window.PLEDGE_CONFIG = { submitUrl: 'https://api.example.org/pledges', contactEmail: 'office@tera.school.nz' };
   (async function () {
     const container = document.getElementById('te-ra-pledge-form');
-    const res = await fetch('https://cdn.jsdelivr.net/gh/1jamesthompson1/pledge-form@main/embed/pledge-form.html');
+    const res = await fetch('https://cdn.jsdelivr.net/gh/1jamesthompson1/pledge-form@release/pledge-form.html');
     const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
     container.innerHTML = doc.body.innerHTML;
     document.head.appendChild(doc.querySelector('style'));
@@ -57,14 +55,17 @@ directly into the page — no iframe, and future releases update automatically:
 Notes:
 
 - `cdn.jsdelivr.net/gh/...` serves GitHub files with CORS enabled, so the
-  `fetch` works from any site. `@main` tracks the latest release; pin a tag
-  (e.g. `@1.2.0`) for a fixed version.
+  `fetch` works from any site. The `release` branch is published by the Release
+  workflow on every push to `main`, so the CDN copy always matches the latest
+  build. The GitHub release asset itself (`releases/latest/download/...`) isn't
+  used here because that URL serves without CORS headers, which would block the
+  browser `fetch`.
 - `window.PLEDGE_CONFIG` is read by the bundle after the markup is injected,
   so the endpoint and contact email can still be set here on the page.
 - Same behaviour as the copy-and-paste approach: styles are injected
   page-globally and draft saving uses the site's own `localStorage`.
 
-The `Release` workflow checks and publishes semantic releases. `npm run build` generates the tracked `embed/pledge-form.html` bundle locally. Changes are intentionally not committed or pushed automatically during development.
+The `Release` workflow runs lint and build, publishes semantic releases, and pushes the freshly built `pledge-form.html` to the `release` branch for jsDelivr delivery. There is no pre-commit hook — builds happen only in CI, and the dev build output is git-ignored.
 
 ## Runtime configuration
 
@@ -133,7 +134,7 @@ fix: preserve radio button drafts
 docs: clarify embedding setup
 ```
 
-Pushes to `main` run lint and build, then semantic-release creates a semantic GitHub Release and attaches the bundled `te-ra-pledge-form.html`. The built `embed/pledge-form.html` is committed to the repo rather than uploaded as a release asset. A `feat` produces a minor release, `fix` produces a patch release, and `BREAKING CHANGE:` produces a major release.
+Pushes to `main` run lint and build, then semantic-release creates a semantic GitHub Release and attaches the bundled `te-ra-pledge-form.html`. The built `pledge-form.html` is also pushed to the `release` branch for jsDelivr delivery, so the bundle is never committed to `main`. A `feat` produces a minor release, `fix` produces a patch release, and `BREAKING CHANGE:` produces a major release.
 
 ## GitHub Pages
 

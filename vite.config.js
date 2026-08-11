@@ -32,7 +32,7 @@ export default defineConfig(({ command, mode }) => {
       ...(command === 'build' ? [viteSingleFile()] : []),
     ],
     build: {
-      outDir: 'embed',
+      outDir: 'dist',
       assetsInlineLimit: 100000000,
       cssCodeSplit: false,
       modulePreload: { polyfill: false },
