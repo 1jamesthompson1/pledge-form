@@ -149,9 +149,9 @@ git pull
 npm run release
 ```
 
-This runs semantic-release locally: it bumps `package.json` / `package-lock.json` (via `@semantic-release/npm`), commits the bump to `main` and pushes a `vX.Y.Z` tag (via `@semantic-release/git`). No GitHub token is needed locally — just git push credentials. A `feat` produces a minor release, `fix` a patch release, `BREAKING CHANGE:` a major release; if there are no new `feat`/`fix` commits since the last release, nothing is published.
+This runs semantic-release locally: it bumps `package.json` / `package-lock.json` (via `@semantic-release/npm`), commits the bump to `main`, pushes a `vX.Y.Z` tag (via `@semantic-release/git`) and creates the GitHub Release with full release notes — every commit since the last release, not just PRs (via `@semantic-release/github`). Requires the `gh` CLI (`gh auth login` once) or a `GITHUB_TOKEN` env var. A `feat` produces a minor release, `fix` a patch release, `BREAKING CHANGE:` a major release; if there are no new `feat`/`fix` commits since the last release, nothing is published.
 
-Pushing the tag automatically triggers the **Release** GitHub workflow, which builds the bundle, creates the GitHub Release (with release notes), pushes `pledge-form.html` to the `release` branch for jsDelivr delivery, uploads the same file as the `te-ra-pledge-form.html` release asset, and purges the jsDelivr cache. The bundle is never committed to `main`.
+Pushing the tag automatically triggers the **Release** GitHub workflow, which builds the bundle, creates the GitHub Release if it doesn't already exist (e.g. a manually pushed tag; with GitHub's PR-only auto notes as a fallback), pushes `pledge-form.html` to the `release` branch for jsDelivr delivery, uploads the same file as the `te-ra-pledge-form.html` release asset, and purges the jsDelivr cache. The bundle is never committed to `main`.
 
 ## GitHub Pages
 
