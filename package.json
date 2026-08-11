@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "release": "bash scripts/release.sh"
+    "release": "semantic-release --no-ci"
   },
   "devDependencies": {
     "@semantic-release/git": "^10.0.1",
