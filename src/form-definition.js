@@ -68,7 +68,7 @@ export const labels = {
   kindergartenChild: 'Kindergarten / Nursery child {n}',
   childName: 'Child full name',
   childClass: 'Class for {year}',
-  childAge: 'Age at first school term date ({termStart})',
+  childAge: 'Age at {termStart}',
   daysPerWeek: 'Days per week',
   noSchoolChildren: 'No school children added.',
   noKindergartenChildren: 'No Kindergarten / Nursery children added.',

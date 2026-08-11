@@ -320,7 +320,7 @@ function render() {
           <p class="fine-print">Submissions are sent securely to the school’s configured service.</p>
         </section>
       </form>
-      <footer>${contactEmail ? `<a href="mailto:${contactEmail}">Questions? Contact the office</a>` : ''}</footer>
+      <footer>${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}</footer>
     </div>`;
 }
 
