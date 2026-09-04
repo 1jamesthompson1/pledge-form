@@ -2,7 +2,7 @@
 
 An embeddable 2027 digital pledge form for Te Ra School and Te Rawhiti Kindergarten.
 
-Current development version: `0.0.1`.
+Made 
 
 ## Local development
 

@@ -3,9 +3,18 @@
 // (functions/src/formDefinition.js) for the generated pledge PDF and email.
 // Keep all sections, consent wording and field labels here — never
 // duplicate them elsewhere.
+//
+// Templating: every string is written with {token} placeholders and resolved
+// at render time via interpolate(). Standard tokens provided everywhere:
+//   {year}, {schoolName}, {child} (child/children by total count),
+//   {schoolChild}, {kindergartenChild} (per-group counts), {n}, {date},
+//   {termStart}, {weeks}, {totalWeeks}
+// Unfinished copy is marked with the consistent "PLACEHOLDER: ..." prefix.
 
 export const interpolate = (template, vars = {}) =>
   template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] === undefined ? '' : String(vars[key])));
+
+export const childWord = (count) => (count === 1 ? 'child' : 'children');
 
 export const formatLongDate = (isoDate) => {
   if (!isoDate) return '';
@@ -14,45 +23,79 @@ export const formatLongDate = (isoDate) => {
   return date.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
+export const formatLongDateOrdinal = (isoDate) => {
+  if (!isoDate) return '';
+  const date = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return String(isoDate);
+  const day = date.getDate();
+  const suffix = (day % 10 === 1 && day % 100 !== 11) ? 'st'
+    : (day % 10 === 2 && day % 100 !== 12) ? 'nd'
+      : (day % 10 === 3 && day % 100 !== 13) ? 'rd' : 'th';
+  return `${day}${suffix} ${date.toLocaleDateString('en-NZ', { month: 'long', year: 'numeric' })}`;
+};
+
 export const sections = [
   { number: '01', title: 'Who is completing this pledge?' },
-  { number: '02', title: 'Medical consent' },
-  { number: '03', title: 'EOTC consent' },
-  { number: '04', title: 'Photo permissions' },
-  { number: '05', title: 'Code of conduct and special character' },
-  { number: '06', title: 'Our pledge for {year}' },
-  { number: '07', title: 'Emergency contacts' },
-  { number: '08', title: 'Custodial arrangements' },
-  { number: '09', title: 'Confirm and submit' },
+  { number: '02', title: 'Commitment to our special character' },
+  { number: '03', title: 'Code of conduct' },
+  { number: '04', title: 'Medical consent' },
+  { number: '05', title: 'Medical information' },
+  { number: '06', title: 'Emergency contacts' },
+  { number: '07', title: 'EOTC blanket consent {year} for local walks' },
+  { number: '08', title: 'Photo permissions' },
+  { number: '09', title: 'Custodial arrangements' },
+  { number: '10', title: 'Our pledge for {year}' },
+  { number: '11', title: 'Confirm and submit' },
 ];
 
 export const sectionTitle = (section, year) => interpolate(section.title, { year });
 
 export const consentGroups = {
+  commitment: [
+    'Respect the special character guiding principles and to uphold the code of conduct.',
+    'Attend two working bees this year.',
+    'Commit to supporting the class teacher by volunteering as a driver or helper for trips, camps and other activities coordinated by the class parent liaison.',
+    'Participate in the annual fair and other events.',
+    'If my/our pledge is less than the indicated base figure, or during the year I/we suffer financial hardship, I/we commit to communicate with the Trust Administrator.',
+    'Commit to regular attendance at parent hui.',
+    'Commit to maintaining healthy home rhythms (e.g., wholesome food, play, sleep).',
+    "Commit to limiting child's access and exposure to screens and digital devices.",
+  ],
   medical: [
-    'In an emergency, school staff may act on my behalf.',
-    'School staff may administer pain relief, such as paracetamol, after seeking verbal permission.',
-    'Basic first aid may be given, including an icepack, plaster, arnica cream or hypercal cream.',
-    "I will tell the school about changes in my child's medical circumstances.",
+    'In an emergency school staff may act on my behalf.',
+    'School staff may administer pain relief (e.g., Paracetamol). You will be contacted for verbal permission if this is needed.',
+    'To allow basic first aid for my {child}, e.g., an icepack, sticking plaster, arnica cream or hypercal cream.',
+    "I will inform {schoolName} as soon as possible of any changes in the medical circumstances of my/our {child}.",
+    "If prescribed medication is needed to be administered, a designated adult will be assigned to do this. I will ensure that prescribed medication is clearly labelled, securely fastened and handed to the office or their kindergarten teacher with instructions on its administration. This includes asthma.",
+    "Any medical cost not covered by ACC or a community service card will be paid by me/us."
+    
   ],
   conduct: [
-    'Treat others with respect and uphold their privacy.',
-    'Work in partnership with staff for the benefit of all students.',
-    'Respect and adhere to the school values and special character.',
-    'Use digital technology and social media safely and responsibly.',
-    'Act in accordance with school rules, procedures and legal obligations.',
+    'Treat others with respect and uphold their right to privacy.',
+    'Work together in partnership with staff for the benefit of all students.',
+    'Respect and adhere to our school values and character.',
+    'Use digital technology and social media safely and responsibly whilst respecting the privacy of other (e.g. sharing images).',
+    'Understand that the kindergarten and school have a process to resolve concerns and complaints, which can be found on the school website.',
+    'Act in accordance with school rules, procedures, and legal obligations.',
   ],
   photos: [
-    'My child may be photographed at school, kindergarten / nursery and EOTC events.',
-    'Photos may be published on the school website or newsletter using first name only.',
-    'Photos may be displayed on social media without names.',
+    'I give permission for my {child} to be photographed at {schoolName} and EOTC events.',
+    'I give consent for photographs of my {child} to be published on the {schoolName} website or in the newsletter (when childrens names are used in the text it will be first name only).',
+    'I give consent for photographs of my {child} to be displayed on social media for example Facebook and Instagram (no names will be used).'
   ],
 };
 
-export const eotcStatements = [
-  'I understand that risks are associated with EOTC activities and cannot be completely eliminated.',
-  'I understand that the school will identify hazards and manage those risks.',
-  'I understand that I can ask the school questions about activities.',
+export const eotcStatementsSchool = [
+  'I agree to my {schoolChild} taking part in local walks. I acknowledge the need for them to behave responsibly.',
+  'I understand that there are risks associated with involvement in the schools EOTC events and that these risks cannot be completely eliminated.',
+  'I understand that the school/kindergarten will identify any foreseeable risks and hazards and implement correct management procedures to eliminate or minimise those risks.',
+  'I acknowledge that in order to gain a better understanding of the risks involved I am able to asks any questions of the school/kindergarten about the activities in which my child will be involved.'
+];
+
+export const eotcStatementsKindergarten = [
+  'PLACEHOLDER: Kindergarten EOTC statement 1',
+  'PLACEHOLDER: Kindergarten EOTC statement 2',
+  'PLACEHOLDER: Kindergarten EOTC statement 3',
 ];
 
 export const eotcLegends = {
@@ -61,6 +104,25 @@ export const eotcLegends = {
 };
 
 export const labels = {
+  returnByTop: 'Please submit this form by {date}.',
+  returnByBottom: 'Reminder: please return your form by {date}.',
+  commitmentIntro: "I/we express support to {schoolName} and confirm our {child}'s enrolment for {year} by pledging our special character contribution and by agreeing to:",
+  conductIntro: 'This applies to all forms of communication while on school grounds or at another venue where students and/or staff are assembled for school purposes such as a camp or sports matches.<br><br>{schoolName} expects parents, caregivers and visitors to:',
+  medicalIntro: 'I/we agree that:',
+  medicalInfoIntro: 'Please note any medical conditions or health information for each child.',
+  medicalInfoOutro: 'It is very important that this information is kept up to date throughout the year, please contact the school office if anything changes.',
+  emergencyIntro: 'Please provide two people the school can contact in an emergency.',
+  emergencyOutro: 'Please keep these details up to date throughout the year by contacting the school office.',
+  medicalInfoPlaceholder: 'Any medical conditions, allergies or other health information',
+  photosIntro: 'At times we capture moments of learning, play and community life at {schoolName}. These images help us share the richness of the programme with Whānau. Please let us know your preferences for how your child\'s photos may be used.',
+eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low risk events which occur during the course of a Kindergarten or School day and are planned to conclude prior to 2:45pm.',
+  eotcEndNote: 'During {year}, the Kindergarten and School teachers do not need to seek specific consent for local walks with their class. They will inform whānau when an event is planned or when a walk is part of the their weekly programme, e.g., walking day.',
+  eotcWalksIntro: 'Typical events of this nature are walks to:',
+  eotcWalks: [
+    'Nearby parks and places, the beach, the community orchard',
+    'the farm across the road from school and land surrounding the school',
+    'the school grounds',
+  ],
   childrenQuestion: 'How many children are you completing this pledge for?',
   schoolChildren: 'School children',
   kindergartenChildren: 'Kindergarten / Nursery children',
@@ -85,6 +147,8 @@ export const labels = {
   agreedAmount: 'Agreed amount',
   supplementaryDonation: 'Supplementary donation / pay it forward',
   disbursementContribution: 'Disbursement contribution',
+  disbursementInfoTitle: 'More about disbursements',
+  disbursementInfoBody: 'PLACEHOLDER: Add real information about disbursements here.',
   totalPledge: 'Total pledge for {year}',
   perTerm: 'Per term',
   perWeek: 'Per week (school year)',

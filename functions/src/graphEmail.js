@@ -1,6 +1,6 @@
 import { ClientSecretCredential } from '@azure/identity';
-import { money } from './pledgeConfig.js';
-import { consentGroups, eotcStatements } from './formDefinition.js';
+import { money, pledgeRules } from './pledgeConfig.js';
+import { interpolate, consentGroups, eotcStatementsSchool, eotcStatementsKindergarten } from './formDefinition.js';
 
 const tenantId = process.env.AZURE_TENANT_ID;
 const clientId = process.env.AZURE_CLIENT_ID;
@@ -9,8 +9,8 @@ const sender = process.env.EMAIL_SENDER;
 
 const UNTICKED_PERMISSIONS = [
   ['Medical consent', 'medical', consentGroups.medical],
-  ['School EOTC consent', 'eotcSchool', eotcStatements],
-  ['Kindergarten / Nursery EOTC consent', 'eotcKindergarten', eotcStatements],
+  ['School EOTC consent', 'eotcSchool', eotcStatementsSchool],
+  ['Kindergarten / Nursery EOTC consent', 'eotcKindergarten', eotcStatementsKindergarten],
   ['Conduct consent', 'conduct', consentGroups.conduct],
   ['Photos consent', 'photos', consentGroups.photos],
 ];
@@ -73,7 +73,7 @@ function buildBody(pledge) {
   for (const [label, key, statements] of UNTICKED_PERMISSIONS) {
     statements.forEach((text, index) => {
       if (pledge[`${key}-${index}`] !== 'on') {
-        notConsented.push(`- ${label}: ${text}`);
+        notConsented.push(`- ${label}: ${interpolate(text, { schoolName: pledgeRules.schoolName, year: pledgeRules.year })}`);
       }
     });
   }

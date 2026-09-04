@@ -1,8 +1,8 @@
 import './style.css';
 import { money, pledgeRules } from './pledge-config.js';
 import {
-  interpolate, formatLongDate, sections, sectionTitle, consentGroups,
-  eotcStatements, eotcLegends, labels,
+  interpolate, formatLongDate, formatLongDateOrdinal, sections, sectionTitle, consentGroups,
+  eotcStatementsSchool, eotcStatementsKindergarten, eotcLegends, labels, childWord,
 } from './form-definition.js';
 import examplePledge from './example-data.json';
 
@@ -72,6 +72,35 @@ let currentStartDateValue = validStartDate ? startDateParam : null;
 let { weeks: weeksRemaining, factor: scaleFactor } = computeScaling(startDate);
 const scale = (amount) => Math.round(amount * scaleFactor * 100) / 100;
 
+const schoolChildCount = () => Number(document.querySelector('#pledge-form [name="schoolChildCount"]')?.value || 0);
+const kindergartenChildCount = () => Number(document.querySelector('#pledge-form [name="kindergartenChildCount"]')?.value || 0);
+
+function childCount() {
+  return schoolChildCount() + kindergartenChildCount();
+}
+
+const t = (template, vars = {}) => interpolate(template, {
+  year: pledgeRules.year,
+  schoolName: pledgeRules.schoolName,
+  child: childWord(childCount()),
+  schoolChild: childWord(schoolChildCount()),
+  kindergartenChild: childWord(kindergartenChildCount()),
+  ...vars,
+});
+
+const applyLinks = (html, links) => Object.entries(links).reduce(
+  (h, [phrase, url]) => h.replace(phrase, `<a href="${url}" target="_blank" rel="noopener">${phrase}</a>`),
+  html,
+);
+
+function refreshTemplates() {
+  document.querySelectorAll('[data-template]').forEach((element) => {
+    const template = decodeURIComponent(element.dataset.template);
+    const links = element.dataset.links ? JSON.parse(decodeURIComponent(element.dataset.links)) : {};
+    element.innerHTML = applyLinks(t(template), links);
+  });
+}
+
 function updateDisbursementNote() {
   const note = document.querySelector('#disbursement-note');
   if (note) note.textContent = `The ${pledgeRules.year} disbursement contribution is ${money(pledgeRules.disbursementPerChild)} per child${startDate ? `, pro-rated to ${money(scale(pledgeRules.disbursementPerChild))} from the start date` : ''}.`;
@@ -89,7 +118,7 @@ function applyStartDate(value) {
     const summary = note.querySelector('#start-date-summary');
     if (summary) {
       summary.textContent = date
-        ? interpolate(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks, year: pledgeRules.year })
+        ? t(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks })
         : labels.noStartDateNote;
     }
   }
@@ -100,8 +129,10 @@ function applyStartDate(value) {
 function field(label, name, type = 'text', options = {}) {
   const control = type === 'textarea'
     ? `<textarea name="${name}" rows="2" ${options.required ? 'required' : ''}></textarea>`
-    : `<input name="${name}" type="${type}" ${options.required ? 'required' : ''} ${options.readonly ? 'readonly' : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} ${options.max !== undefined ? `max="${options.max}"` : ''} />`;
-  return `<label><span class="field-label">${label}${options.required ? ' <span aria-hidden="true">*</span>' : ''}</span>${control}</label>`;
+    : type === 'select'
+      ? `<select name="${name}" ${options.required ? 'required' : ''}>${(options.options || []).map((opt) => `<option value="${opt.value}" ${opt.selected ? 'selected' : ''}>${opt.label}</option>`).join('')}</select>`
+      : `<input name="${name}" type="${type}" ${options.required ? 'required' : ''} ${options.readonly ? 'readonly' : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} ${options.max !== undefined ? `max="${options.max}"` : ''} />`;
+  return `<label><span class="field-label">${t(label)}${options.required ? ' <span aria-hidden="true">*</span>' : ''}</span>${control}</label>`;
 }
 
 function sectionHead(number) {
@@ -109,9 +140,16 @@ function sectionHead(number) {
   return `<div class="section-heading"><h2>${sectionTitle(section, pledgeRules.year)}</h2></div>`;
 }
 
-function checklist(key, required = false) {
-  return `<fieldset>${consentGroups[key].map((text, index) => `
-    <label class="check"><input type="checkbox" name="${key}-${index}" ${required ? 'required' : ''} /> <span>${text}</span></label>`).join('')}</fieldset>`;
+function expandable(title, body) {
+  return `<details class="info-panel"><summary>${t(title)}</summary><div class="info-panel-body">${t(body)}</div></details>`;
+}
+
+function checklist(key, required = false, links = {}) {
+  const linksAttr = Object.keys(links).length ? ` data-links="${encodeURIComponent(JSON.stringify(links))}"` : '';
+  return `<fieldset>${consentGroups[key].map((text, index) => {
+    const html = applyLinks(t(text), links);
+    return `<label class="check"><input type="checkbox" name="${key}-${index}" ${required ? 'required' : ''} /> <span${linksAttr} data-template="${encodeURIComponent(text)}">${html}</span></label>`;
+  }).join('')}</fieldset>`;
 }
 
 function dynamicChildren() {
@@ -120,8 +158,17 @@ function dynamicChildren() {
   const kindergartenCount = Number(document.querySelector('[name="kindergartenChildCount"]')?.value || 0);
   const rows = (kind, count) => Array.from({ length: count }, (_, index) => {
     const n = index + 1;
-    const title = interpolate(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n });
-    const details = kind === 'school' ? field(interpolate(labels.childClass, { year: pledgeRules.year }), `${kind}${n}Class`, 'number', { required: true, min: 1, max: 7 }) : `${field(interpolate(labels.childAge, { termStart: firstTermStartLabel }), `${kind}${n}Age`, 'number', { required: true, min: 2, max: 6 })}<label>${labels.daysPerWeek}<select name="${kind}${n}Days" required><option value="5" selected>5 days</option><option value="3">3 days</option><option value="2">2 days</option></select></label>`;
+    const title = t(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n });
+    const classOptions = Array.from({ length: 7 }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
+    const ageOptions = Array.from({ length: 5 }, (_, i) => ({ value: i + 2, label: String(i + 2) }));
+    const daysOptions = [
+      { value: 5, label: '5 days', selected: true },
+      { value: 3, label: '3 days' },
+      { value: 2, label: '2 days' },
+    ];
+    const details = kind === 'school'
+      ? field(t(labels.childClass), `${kind}${n}Class`, 'select', { required: true, options: classOptions })
+      : `${field(t(labels.childAge, { termStart: firstTermStartLabel }), `${kind}${n}Age`, 'select', { required: true, options: ageOptions })}${field(labels.daysPerWeek, `${kind}${n}Days`, 'select', { required: true, options: daysOptions })}`;
     return `<div class="child-row"><strong>${title}</strong>${field(labels.childName, `${kind}${n}Name`, 'text', { required: true })}${details}</div>`;
   }).join('');
   document.querySelector('#school-children').innerHTML = rows('school', schoolCount) || `<p class="muted">${labels.noSchoolChildren}</p>`;
@@ -132,6 +179,8 @@ function dynamicChildren() {
     if (input) input.value = value;
   });
   dynamicContributionRows();
+  dynamicMedicalInfoRows();
+  refreshTemplates();
 }
 
 function dynamicContributionRows() {
@@ -159,6 +208,23 @@ function dynamicContributionRows() {
     const childName = form.querySelector(`[name="${source}"]`)?.value.trim() || `Child ${index + 1}`;
     return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(scale(pledgeRules.disbursementPerChild))}</span><input name="${fieldName}" type="number" min="0" step="0.01" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
   }).join('') || '<p class="muted">Add students above to see disbursement amounts.</p>';
+  syncLinkedNames();
+}
+
+function dynamicMedicalInfoRows() {
+  const form = document.querySelector('#pledge-form');
+  const rows = (kind, count) => Array.from({ length: count }, (_, index) => {
+    const number = index + 1;
+    const sourceName = `${kind}${number}Name`;
+    const fieldName = `${kind}${number}MedicalInfo`;
+    const current = form.querySelector(`[name="${fieldName}"]`)?.value || '';
+    return `<div class="medical-info-row"><strong class="linked-name" data-source="${sourceName}">${kind === 'school' ? 'School' : 'Kindergarten / Nursery'} child ${number}</strong><textarea name="${fieldName}" rows="2" placeholder="${t(labels.medicalInfoPlaceholder)}">${current}</textarea></div>`;
+  }).join('');
+  const container = document.querySelector('#medical-info-rows');
+  if (!container) return;
+  const schoolCount = Number(form.querySelector('[name="schoolChildCount"]')?.value || 0);
+  const kindergartenCount = Number(form.querySelector('[name="kindergartenChildCount"]')?.value || 0);
+  container.innerHTML = `${rows('school', schoolCount)}${rows('kindergarten', kindergartenCount)}` || `<p class="muted">${labels.noSchoolChildren}</p>`;
   syncLinkedNames();
 }
 
@@ -224,12 +290,12 @@ function updateCustodySection() {
   document.querySelector('#custody-arrangements').innerHTML = Array.from({ length: count }, (_, index) => {
     const childrenCheckboxes = children.map(([kind, number]) => {
       const name = `${kind}${number}Name`;
-      const label = document.querySelector(`[name="${name}"]`)?.value.trim() || interpolate(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n: number });
+      const label = document.querySelector(`[name="${name}"]`)?.value.trim() || t(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n: number });
       const checkboxName = `custody-${index}-${kind}${number}`;
       return `<label class="check"><input type="checkbox" name="${checkboxName}" ${existing[checkboxName] ? 'checked' : ''} /> <span data-source="${name}">${label}</span></label>`;
     }).join('') || '<p class="muted">Add children in section 01 first.</p>';
     return `<div class="custody-arrangement">
-      <h4>${interpolate(labels.custodyArrangement, { n: index + 1 })}</h4>
+      <h4>${t(labels.custodyArrangement, { n: index + 1 })}</h4>
       <fieldset><legend>${labels.custodyChildrenAffected}</legend>${childrenCheckboxes}</fieldset>
       ${field(labels.custodyLivingArrangements, `custody-${index}-livingArrangements`, 'textarea', { required: true })}
       ${field(labels.custodyLegalRestrictions, `custody-${index}-legalRestrictions`, 'textarea', { required: true })}
@@ -251,7 +317,8 @@ function render() {
     <div class="shell">
       <header class="hero">
         <h1>Special Character Pledge Form <em>${pledgeRules.year}</em></h1>
-        <p class="intro">A digital version of the special character pledge form. Your progress is saved on this device while you complete the form.</p>
+        <p class="intro">This is a digital version of the Special Character Pledge Form, replacing previous years paper copy.</p>
+        ${pledgeRules.returnBy ? `<p class="return-by">${t(labels.returnByTop, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}
         <p class="draft-warning"><strong>Draft form:</strong> This form is currently in development and not yet live. Do not submit real pledges until this notice is removed.</p>
         <div class="status" role="status" aria-live="polite"><span class="status-dot"></span><span id="save-status">Ready to begin</span></div>
         ${isDev ? '<button type="button" id="dev-fill" class="dev-fill">Load test data</button>' : ''}
@@ -265,44 +332,53 @@ function render() {
         </section>
 
         <section class="card">${sectionHead('02')}
-          ${checklist('medical', true)}
+          <p class="muted" data-template="${encodeURIComponent(labels.commitmentIntro)}">${t(labels.commitmentIntro)}</p>
+          ${checklist('commitment', true)}
         </section>
 
         <section class="card">${sectionHead('03')}
-          <fieldset id="eotc-school-consent" hidden><legend>${eotcLegends.school} <span class="consent-names"></span></legend>
-            ${eotcStatements.map((text, index) => `<label class="check"><input type="checkbox" name="eotcSchool-${index}" /> <span>${text}</span></label>`).join('')}
-          </fieldset>
-          <fieldset id="eotc-kindergarten-consent" hidden><legend>${eotcLegends.kindergarten} <span class="consent-names"></span></legend>
-            ${eotcStatements.map((text, index) => `<label class="check"><input type="checkbox" name="eotcKindergarten-${index}" /> <span>${text}</span></label>`).join('')}
-          </fieldset>
+          <p class="muted" data-template="${encodeURIComponent(labels.conductIntro)}">${t(labels.conductIntro)}</p>
+          ${checklist('conduct', true, { 'the school website': 'https://www.tera.school.nz/policies' })}
         </section>
 
         <section class="card">${sectionHead('04')}
-          ${checklist('photos')}
+          <p class="muted">${labels.medicalIntro}</p>
+          ${checklist('medical', true)}
         </section>
 
         <section class="card">${sectionHead('05')}
-          ${checklist('conduct', true)}
+          <p class="muted" data-template="${encodeURIComponent(labels.medicalInfoIntro)}">${t(labels.medicalInfoIntro)}</p>
+          <div id="medical-info-rows"></div>
+          <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.medicalInfoOutro)}">${t(labels.medicalInfoOutro)}</p>
         </section>
 
         <section class="card">${sectionHead('06')}
-          <p class="muted">The contribution is donation-based. Recommended amounts are guidance, not fees. Please contact the Trust Administrator if you need to discuss financial hardship.</p>
-          <p class="rule-note">School pricing: ${pledgeRules.school.note}</p>
-          <p class="rule-note">Kindergarten pricing: ${pledgeRules.kindergarten.note}</p>
-          ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">${interpolate(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks, year: pledgeRules.year })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}<h3 class="amounts-heading">${labels.pledgeAmounts}</h3><div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="pledge-rows"></div></div>${field(labels.supplementaryDonation, 'supplementaryDonation', 'number', { min: 0 })}<h3 class="amounts-heading">${labels.disbursementAmounts}</h3><div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="disbursement-rows"></div></div>${field(labels.disbursementContribution, 'disbursement', 'number', { min: 0, readonly: true })}<p id="disbursement-note" class="muted"></p>
-           <div class="total-line">${field(interpolate(labels.totalPledge, { year: pledgeRules.year }), 'totalPledge', 'number', { required: true, min: 0, readonly: true })}</div><div class="price-summary" aria-live="polite"><div><span>${labels.perTerm}</span><strong id="term-total">$0.00</strong><small>Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>${labels.perWeek}</span><strong id="week-total">$0.00</strong><small>Total divided by ${pledgeRules.schoolYearWeeks} weeks of the school year</small></div></div>
-           <fieldset><legend>${labels.paymentPlan}</legend>${paymentPlanOptions.map((option) => `<label class="check"><input type="radio" name="paymentPlan" value="${option.label}" required /> <span>${option.label} <em class="plan-price" data-plan="${option.key}"></em></span></label>`).join('')}</fieldset>
-           ${field(labels.pledgeComments, 'pledgeComments', 'textarea')}
+          <p class="muted" data-template="${encodeURIComponent(labels.emergencyIntro)}">${t(labels.emergencyIntro)}</p>
+          <div class="emergency-contact"><h3>${t(labels.emergencyContact, { n: 1 })}</h3><div class="grid three">${field(labels.emergencyName, 'emergencyContact1Name', 'text', { required: true })}${field(labels.emergencyPhone, 'emergencyContact1Phone', 'tel', { required: true })}${field(labels.emergencyRelationship, 'emergencyContact1Relationship', 'text', { required: true })}</div></div>
+          <div class="emergency-contact"><h3>${t(labels.emergencyContact, { n: 2 })}</h3><div class="grid three">${field(labels.emergencyName, 'emergencyContact2Name', 'text', { required: true })}${field(labels.emergencyPhone, 'emergencyContact2Phone', 'tel', { required: true })}${field(labels.emergencyRelationship, 'emergencyContact2Relationship', 'text', { required: true })}</div></div>
+          <div class="emergency-comments">${field(labels.emergencyComments, 'emergencyComments', 'textarea')}</div>
+          <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.emergencyOutro)}">${t(labels.emergencyOutro)}</p>
         </section>
 
         <section class="card">${sectionHead('07')}
-          <p class="muted">Please provide two people the school can contact in an emergency. Keep these details up to date throughout the year.</p>
-          <div class="emergency-contact"><h3>${interpolate(labels.emergencyContact, { n: 1 })}</h3><div class="grid three">${field(labels.emergencyName, 'emergencyContact1Name', 'text', { required: true })}${field(labels.emergencyPhone, 'emergencyContact1Phone', 'tel', { required: true })}${field(labels.emergencyRelationship, 'emergencyContact1Relationship', 'text', { required: true })}</div></div>
-          <div class="emergency-contact"><h3>${interpolate(labels.emergencyContact, { n: 2 })}</h3><div class="grid three">${field(labels.emergencyName, 'emergencyContact2Name', 'text', { required: true })}${field(labels.emergencyPhone, 'emergencyContact2Phone', 'tel', { required: true })}${field(labels.emergencyRelationship, 'emergencyContact2Relationship', 'text', { required: true })}</div></div>
-          ${field(labels.emergencyComments, 'emergencyComments', 'textarea')}
+          <p class="muted" data-template="${encodeURIComponent(labels.eotcIntro)}">${t(labels.eotcIntro)}</p>
+          <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcWalksIntro)}">${t(labels.eotcWalksIntro)}</p>
+          <ul class="eotc-walks-list">${labels.eotcWalks.map((item) => `<li data-template="${encodeURIComponent(item)}">${t(item)}</li>`).join('')}</ul>
+          <fieldset id="eotc-school-consent" hidden><legend>${t(eotcLegends.school)} <span class="consent-names"></span></legend>
+            ${eotcStatementsSchool.map((text, index) => `<label class="check"><input type="checkbox" name="eotcSchool-${index}" /> <span data-template="${encodeURIComponent(text)}">${t(text)}</span></label>`).join('')}
+          </fieldset>
+          <fieldset id="eotc-kindergarten-consent" hidden><legend>${t(eotcLegends.kindergarten)} <span class="consent-names"></span></legend>
+            ${eotcStatementsKindergarten.map((text, index) => `<label class="check"><input type="checkbox" name="eotcKindergarten-${index}" /> <span data-template="${encodeURIComponent(text)}">${t(text)}</span></label>`).join('')}
+          </fieldset>
+          <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcEndNote)}">${t(labels.eotcEndNote)}</p>
         </section>
 
         <section class="card">${sectionHead('08')}
+          <p class="muted" data-template="${encodeURIComponent(labels.photosIntro)}">${t(labels.photosIntro)}</p>
+          ${checklist('photos')}
+        </section>
+
+        <section class="card">${sectionHead('09')}
           <label class="check custody-toggle"><input type="checkbox" name="custodyApplies" /> <span>${labels.custodyToggle}</span></label>
           <div id="custody-details" hidden>
             <input type="hidden" name="custodyArrangementCount" value="0" />
@@ -311,7 +387,18 @@ function render() {
           </div>
         </section>
 
-        <section class="card sign-card">${sectionHead('09')}
+        <section class="card">${sectionHead('10')}
+          <p class="muted">The contribution is donation-based. Recommended amounts are guidance, not fees. Please contact the Trust Administrator if you need to discuss financial hardship.</p>
+          <p class="rule-note">School pricing: ${pledgeRules.school.note}</p>
+          <p class="rule-note">Kindergarten pricing: ${pledgeRules.kindergarten.note}</p>
+          ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">${t(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}<h3 class="amounts-heading">${labels.pledgeAmounts}</h3><div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="pledge-rows"></div></div>${field(labels.supplementaryDonation, 'supplementaryDonation', 'number', { min: 0 })}<h3 class="amounts-heading">${labels.disbursementAmounts}</h3><div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="disbursement-rows"></div></div>${field(labels.disbursementContribution, 'disbursement', 'number', { min: 0, readonly: true })}<p id="disbursement-note" class="muted"></p>
+           ${expandable(labels.disbursementInfoTitle, labels.disbursementInfoBody)}
+           <div class="total-line">${field(t(labels.totalPledge), 'totalPledge', 'number', { required: true, min: 0, readonly: true })}</div><div class="price-summary" aria-live="polite"><div><span>${labels.perTerm}</span><strong id="term-total">$0.00</strong><small>Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>${labels.perWeek}</span><strong id="week-total">$0.00</strong><small>Total divided by ${pledgeRules.schoolYearWeeks} weeks of the school year</small></div></div>
+           <fieldset><legend>${labels.paymentPlan}</legend>${paymentPlanOptions.map((option) => `<label class="check"><input type="radio" name="paymentPlan" value="${option.label}" required /> <span>${option.label} <em class="plan-price" data-plan="${option.key}"></em></span></label>`).join('')}</fieldset>
+           ${field(labels.pledgeComments, 'pledgeComments', 'textarea')}
+        </section>
+
+        <section class="card sign-card">${sectionHead('11')}
           <p>I confirm that the information above is correct and that I will advise the school of changes.</p>
           ${field(labels.anythingElse, 'anythingElseComments', 'textarea')}
           <label class="honeypot" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
@@ -320,7 +407,7 @@ function render() {
           <p class="fine-print">Submissions are sent securely to the school’s configured service.</p>
         </section>
       </form>
-      <footer>${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}</footer>
+      <footer>${pledgeRules.returnBy ? `<p class="return-by reminder">${t(labels.returnByBottom, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}</footer>
     </div>`;
 }
 
@@ -535,6 +622,7 @@ async function submit(event) {
 
 render();
 document.title = `Special Character Pledge Form ${pledgeRules.year}`;
+document.querySelector('meta[name="description"]')?.setAttribute('content', `Special Character Pledge Form for ${pledgeRules.schoolName}`);
 const form = document.querySelector('#pledge-form');
 restoreDraft();
 form.addEventListener('input', (event) => {

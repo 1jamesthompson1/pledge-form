@@ -35,6 +35,8 @@ const schoolYearWeeks = schoolYearTerms.length
 
 export const pledgeRules = {
   year: 2027,
+  returnBy: '2026-12-11',
+  schoolName: 'Te Rāwhiti Kindergarten and Te Rā School',
   maxChildrenPerGroup: 5,
   termsPerYear: 4,
   weeksPerYear: 52,
