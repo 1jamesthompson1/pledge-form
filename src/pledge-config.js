@@ -52,7 +52,7 @@ export const pledgeRules = {
       { label: '20% less', amount: schoolRecommendedByChild[1] },
       { label: 'Free', amount: schoolRecommendedByChild[3] },
     ],
-    note: `Full price is ${money(baseAmount)} for the first child. The second child is 20% less, the third child is 40% less, and the fourth and fifth children are free.`,
+    note: `The recommended amount is ${money(baseAmount)} per year for the first child. The second child is 20% less, the third child is 40% less, and the fourth and fifth children are free.`,
     recommendedByChild: schoolRecommendedByChild,
   },
   kindergarten: {
@@ -63,7 +63,7 @@ export const pledgeRules = {
       { label: '3 days (proportional)', amount: kindergartenRecommendedByDays[3] },
       { label: '2 days', amount: kindergartenRecommendedByDays[2] },
     ],
-    note: `Kindergarten is charged at a daily rate of ${money(kindergartenDailyRate)} based on the full ${money(baseAmount)} amount. There are no multi-child discounts for kindergarten.`,
+    note: `The recommended amount is ${money(kindergartenDailyRate / schoolYearWeeks)} per day based on the full ${money(baseAmount)} amount. There are no multi-child discounts for kindergarten.`,
     recommendedByDays: kindergartenRecommendedByDays,
   },
   disbursementPerChild: 400,

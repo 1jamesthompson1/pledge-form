@@ -50,6 +50,7 @@ const paymentPlanOptions = [
   { key: 'month', label: 'Monthly' },
   { key: 'term', label: 'Termly' },
   { key: 'lump', label: 'Lump sum' },
+  { key: 'other', label: 'Other' },
 ];
 const computeScaling = (date) => {
   if (!date) return { weeks: totalSchoolWeeks, factor: 1 };
@@ -101,11 +102,6 @@ function refreshTemplates() {
   });
 }
 
-function updateDisbursementNote() {
-  const note = document.querySelector('#disbursement-note');
-  if (note) note.textContent = `The ${pledgeRules.year} disbursement contribution is ${money(pledgeRules.disbursementPerChild)} per child${startDate ? `, pro-rated to ${money(scale(pledgeRules.disbursementPerChild))} from the start date` : ''}.`;
-}
-
 function applyStartDate(value) {
   const date = parseStartDate(value);
   startDate = date;
@@ -122,7 +118,6 @@ function applyStartDate(value) {
         : labels.noStartDateNote;
     }
   }
-  updateDisbursementNote();
   dynamicContributionRows();
 }
 
@@ -173,7 +168,6 @@ function dynamicChildren() {
   }).join('');
   document.querySelector('#school-children').innerHTML = rows('school', schoolCount) || `<p class="muted">${labels.noSchoolChildren}</p>`;
   document.querySelector('#kindergarten-children').innerHTML = rows('kindergarten', kindergartenCount) || `<p class="muted">${labels.noKindergartenChildren}</p>`;
-  updateDisbursementNote();
   Object.entries(existing).forEach(([name, value]) => {
     const input = document.querySelector(`[name="${name}"]`);
     if (input) input.value = value;
@@ -198,7 +192,7 @@ function dynamicContributionRows() {
     const amountName = `${kind}${number}Amount`;
     const selected = userEditedAmounts.has(amountName) ? currentAmount : recommended;
     const childName = form.querySelector(`[name="${sourceName}"]`)?.value.trim() || `${kind === 'school' ? 'School' : 'Kindergarten / Nursery'} child ${number}`;
-    return `<div class="amount-row"><span class="linked-name" data-source="${sourceName}">${childName}</span><span class="recommended">Recommended: ${money(recommended)}</span><input name="${kind}${number}Amount" type="number" min="0" step="0.01" value="${selected}" aria-label="Agreed amount for ${kind} child ${number}" required /></div>`;
+    return `<div class="amount-row"><span class="linked-name" data-source="${sourceName}">${childName}</span><span class="recommended">Recommended: ${money(recommended)}</span><input name="${kind}${number}Amount" type="number" min="0" step="1" value="${selected}" aria-label="Agreed amount for ${kind} child ${number}" required /></div>`;
   }).join('');
   document.querySelector('#pledge-rows').innerHTML = `${rows('school', schoolCount)}${rows('kindergarten', kindergartenCount)}` || '<p class="muted">Add students above to see pledge amounts.</p>';
   document.querySelector('#disbursement-rows').innerHTML = Array.from({ length: schoolCount + kindergartenCount }, (_, index) => {
@@ -206,7 +200,7 @@ function dynamicContributionRows() {
     const fieldName = source.replace('Name', 'Disbursement');
     const current = form.querySelector(`[name="${fieldName}"]`)?.value || scale(pledgeRules.disbursementPerChild);
     const childName = form.querySelector(`[name="${source}"]`)?.value.trim() || `Child ${index + 1}`;
-    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(scale(pledgeRules.disbursementPerChild))}</span><input name="${fieldName}" type="number" min="0" step="0.01" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
+    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(scale(pledgeRules.disbursementPerChild))}</span><input name="${fieldName}" type="number" min="0" step="1" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
   }).join('') || '<p class="muted">Add students above to see disbursement amounts.</p>';
   syncLinkedNames();
 }
@@ -388,14 +382,23 @@ function render() {
         </section>
 
         <section class="card">${sectionHead('10')}
-          <p class="muted">The contribution is donation-based. Recommended amounts are guidance, not fees. Please contact the Trust Administrator if you need to discuss financial hardship.</p>
-          <p class="rule-note">School pricing: ${pledgeRules.school.note}</p>
-          <p class="rule-note">Kindergarten pricing: ${pledgeRules.kindergarten.note}</p>
-          ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">${t(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}<h3 class="amounts-heading">${labels.pledgeAmounts}</h3><div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="pledge-rows"></div></div>${field(labels.supplementaryDonation, 'supplementaryDonation', 'number', { min: 0 })}<h3 class="amounts-heading">${labels.disbursementAmounts}</h3><div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="disbursement-rows"></div></div>${field(labels.disbursementContribution, 'disbursement', 'number', { min: 0, readonly: true })}<p id="disbursement-note" class="muted"></p>
-           ${expandable(labels.disbursementInfoTitle, labels.disbursementInfoBody)}
-           <div class="total-line">${field(t(labels.totalPledge), 'totalPledge', 'number', { required: true, min: 0, readonly: true })}</div><div class="price-summary" aria-live="polite"><div><span>${labels.perTerm}</span><strong id="term-total">$0.00</strong><small>Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>${labels.perWeek}</span><strong id="week-total">$0.00</strong><small>Total divided by ${pledgeRules.schoolYearWeeks} weeks of the school year</small></div></div>
-           <fieldset><legend>${labels.paymentPlan}</legend>${paymentPlanOptions.map((option) => `<label class="check"><input type="radio" name="paymentPlan" value="${option.label}" required /> <span>${option.label} <em class="plan-price" data-plan="${option.key}"></em></span></label>`).join('')}</fieldset>
+          <p class="muted">The contributions are donation-based. Recommended amounts are a guideline, not fees. Please contact the Trust Administrator if you need to discuss financial hardship.<br><br>As these are donations you may be able to claim back up to 33% of the amount as a donation tax credit from IRD.</p>
+          <p class="muted" data-template="${encodeURIComponent(labels.pledgeOtherCostsNote)}">${t(labels.pledgeOtherCostsNote)}</p>
+          ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">${t(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}
+          <h3 class="amounts-heading">${labels.pledgeAmounts}</h3>
+          <p class="muted" data-template="${encodeURIComponent(labels.pledgeIntro)}">${t(labels.pledgeIntro)}</p>
+          ${expandable(labels.pledgeInfoTitle, labels.pledgeInfoBody)}
+          <p class="rule-note"><strong>${t(labels.recommendedAmountsTitle)}</strong><br />School: ${pledgeRules.school.note}<br/><br>Kindergarten: ${pledgeRules.kindergarten.note}</p>
+          <div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="pledge-rows"></div></div>${field(labels.supplementaryDonation, 'supplementaryDonation', 'number', { min: 0 })}<h3 class="amounts-heading">${labels.disbursementAmounts}</h3>
+          <p class="muted" data-template="${encodeURIComponent(labels.disbursementIntro)}">${t(labels.disbursementIntro)}</p>
+          ${expandable(labels.disbursementInfoTitle, labels.disbursementInfoBody)}
+          <div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="disbursement-rows"></div></div>
+           <h3 class="amounts-heading">${t(labels.paymentHeading)}</h3>
+           <input type="hidden" name="totalPledge" /><div class="price-summary total-summary" aria-live="polite"><div class="total-summary-title">${t(labels.totalPledgeHeading)}</div><div><span>${t(labels.perYear)}</span><strong id="year-total">$0.00</strong></div><div><span>${t(labels.perTerm)}</span><strong id="term-total">$0.00</strong><small>Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>${t(labels.perWeek)}</span><strong id="week-total">$0.00</strong><small>Total divided by ${pledgeRules.schoolYearWeeks} weeks of the school year</small></div></div>
+<fieldset><legend>${labels.paymentPlan}</legend><p class="muted" data-template="${encodeURIComponent(labels.paymentPlanNote)}">${t(labels.paymentPlanNote)}</p>${paymentPlanOptions.map((option) => `<label class="check"><input type="radio" name="paymentPlan" value="${option.label}" required /> <span>${option.label} <em class="plan-price" data-plan="${option.key}"></em></span></label>`).join('')}</fieldset>
            ${field(labels.pledgeComments, 'pledgeComments', 'textarea')}
+           <p class="fine-print" data-template="${encodeURIComponent(labels.pledgeCommentsNote)}">${t(labels.pledgeCommentsNote)}</p>
+           ${expandable(labels.kindoInfoTitle, labels.kindoInfoBody)}
         </section>
 
         <section class="card sign-card">${sectionHead('11')}
@@ -527,6 +530,7 @@ function calculateTotals() {
   const total = form.querySelector('[name="totalPledge"]');
   if (total) total.value = amountTotal + disbursementTotal + donation;
   const annualTotal = Number(total?.value || 0);
+  document.querySelector('#year-total').textContent = money(annualTotal);
   const termTotal = annualTotal / pledgeRules.termsPerYear;
   const weekTotal = annualTotal / pledgeRules.schoolYearWeeks;
   document.querySelector('#term-total').textContent = money(termTotal);
@@ -540,7 +544,7 @@ function calculateTotals() {
   };
   paymentPlanOptions.forEach((option) => {
     const planPrice = document.querySelector(`[data-plan="${option.key}"]`);
-    if (planPrice) planPrice.textContent = `(${money(annualTotal / periodCounts[option.key])})`;
+    if (planPrice && periodCounts[option.key] !== undefined) planPrice.textContent = `(${money(annualTotal / periodCounts[option.key])})`;
   });
 }
 
@@ -632,6 +636,21 @@ form.addEventListener('input', (event) => {
   syncLinkedNames();
   calculateTotals();
   saveDraft();
+});
+form.addEventListener('keydown', (event) => {
+  if (event.target.type === 'number' && ['e', 'E', '+', '-', '.'].includes(event.key)) {
+    event.preventDefault();
+  }
+});
+form.addEventListener('paste', (event) => {
+  if (event.target.type !== 'number') return;
+  event.preventDefault();
+  const digits = (event.clipboardData.getData('text') || '').replace(/\D/g, '');
+  const input = event.target;
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  input.value = input.value.slice(0, start) + digits + input.value.slice(end);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
 });
 form.addEventListener('change', (event) => {
   if (event.target.id === 'start-date-input') applyStartDate(event.target.value);
