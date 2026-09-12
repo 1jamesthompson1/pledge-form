@@ -18,6 +18,15 @@ h2 { font-size: clamp(25px, 4vw, 36px); } h3 { margin: 30px 0 12px; font-size: 1
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
 .dev-fill { margin-left: 18px; padding: 7px 14px; color: var(--blue); background: transparent; border: 1px dashed var(--blue); border-radius: 999px; cursor: pointer; font: 700 12px 'DM Sans', sans-serif; }
 .dev-fill:hover { background: #eef4f7; }
+.admin-panel { background: #eef4f7; border: 1px dashed var(--blue); box-shadow: none; }
+.admin-panel h2 { font-size: clamp(22px, 3vw, 30px); }
+.admin-panel h3 { margin-top: 24px; }
+.admin-tool + .admin-tool { margin-top: 8px; padding-top: 4px; border-top: 1px solid var(--line); }
+.admin-row { display: flex; gap: 10px; margin-top: 10px; }
+.admin-row input { flex: 1 1 auto; min-width: 0; font-weight: 400; }
+.admin-row button { flex: none; padding: 8px 16px; color: #fff; background: var(--blue); border: 0; border-radius: 2px; cursor: pointer; font: 700 13px 'DM Sans', sans-serif; }
+.admin-row button:hover { background: var(--ink); }
+.admin-output { min-height: 18px; margin: 10px 0 0; color: var(--green); font-size: 13px; }
 form { display: grid; gap: 18px; margin-top: 14px; }.card { padding: clamp(22px, 5vw, 42px); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 10px 30px #193b5610; }.accent-card { border-top: 5px solid var(--gold); }
 .section-heading { margin-bottom: 28px; }
 .grid { display: grid; gap: 18px; }.grid.two { grid-template-columns: repeat(2, 1fr); }

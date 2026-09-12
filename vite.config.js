@@ -7,6 +7,7 @@ function devConfigPlugin(env) {
   if (env.VITE_SUBMIT_URL) config.submitUrl = env.VITE_SUBMIT_URL;
   if (env.VITE_CONTACT_EMAIL) config.contactEmail = env.VITE_CONTACT_EMAIL;
   if (env.VITE_DEV === 'true') config.dev = true;
+  if (env.VITE_DRAFT === 'true') config.draft = true;
   const json = JSON.stringify(config).replace(/</g, '\\u003c');
   return {
     name: 'pledge-dev-config',

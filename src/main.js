@@ -15,8 +15,10 @@ const contactEmail = window.PLEDGE_CONFIG?.contactEmail;
 const FORM_LOAD_TIME = Date.now();
 const MIN_FILL_TIME_MS = 5000;
 const isDev = window.PLEDGE_CONFIG?.dev === true;
+const isDraft = window.PLEDGE_CONFIG?.draft === true;
 const successHTML = '<div class="success"><span class="success-mark">✓</span><p class="eyebrow">Pledge received</p><h2>Thank you, your pledge has been submitted.</h2><p>The school will be in touch if anything needs clarification.</p></div>';
 const params = new URLSearchParams(window.location.search);
+const isAdmin = ['1', 'true'].includes(params.get('admin'));
 const startDateParam = params.get('startDate') || params.get('startdate');
 const parseStartDate = (raw) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(raw))) return null;
@@ -31,12 +33,12 @@ const firstTermStartLabel = formatLongDate(firstTermStart);
 const totalSchoolWeeks = (() => {
   const terms = pledgeRules.schoolYear?.terms || [];
   if (!terms.length) return pledgeRules.weeksPerYear;
-  const days = terms.reduce((total, term) => {
+  return terms.reduce((total, term) => {
     const start = new Date(`${term.start}T00:00:00`);
     const end = new Date(`${term.end}T00:00:00`);
-    return total + Math.round((end - start) / 86400000) + 1;
+    const days = Math.round((end - start) / 86400000) + 1;
+    return total + Math.ceil(days / 7);
   }, 0);
-  return Math.ceil(days / 7);
 })();
 const schoolYearMonths = (() => {
   const terms = pledgeRules.schoolYear?.terms || [];
@@ -53,17 +55,34 @@ const paymentPlanOptions = [
   { key: 'lump', label: 'Lump sum' },
   { key: 'other', label: 'Other' },
 ];
+const fullPeriods = {
+  weeks: totalSchoolWeeks,
+  factor: 1,
+  terms: pledgeRules.termsPerYear,
+  spanWeeks: pledgeRules.schoolYearWeeks,
+  months: schoolYearMonths,
+};
 const computeScaling = (date) => {
-  if (!date) return { weeks: totalSchoolWeeks, factor: 1 };
-  let days = 0;
-  for (const term of pledgeRules.schoolYear?.terms || []) {
+  const terms = pledgeRules.schoolYear?.terms || [];
+  if (!date || !terms.length) return { ...fullPeriods };
+  let weeks = 0;
+  for (const term of terms) {
     const termStart = new Date(`${term.start}T00:00:00`);
     const termEnd = new Date(`${term.end}T00:00:00`);
     const effective = date > termStart ? date : termStart;
-    if (effective <= termEnd) days += Math.round((termEnd - effective) / 86400000) + 1;
+    if (effective <= termEnd) weeks += Math.ceil((Math.round((termEnd - effective) / 86400000) + 1) / 7);
   }
-  const weeks = days > 0 ? Math.ceil(days / 7) : 0;
-  return { weeks, factor: totalSchoolWeeks > 0 ? weeks / totalSchoolWeeks : 1 };
+  const firstStart = new Date(`${terms[0].start}T00:00:00`);
+  const effectiveStart = date > firstStart ? date : firstStart;
+  const lastEnd = new Date(`${terms.at(-1).end}T00:00:00`);
+  const spanDays = Math.round((lastEnd - effectiveStart) / 86400000) + 1;
+  return {
+    weeks,
+    factor: totalSchoolWeeks > 0 ? weeks / totalSchoolWeeks : 1,
+    terms: Math.max(1, terms.filter((term) => date <= new Date(`${term.end}T00:00:00`)).length),
+    spanWeeks: Math.max(1, Math.ceil(spanDays / 7)),
+    months: Math.max(1, (lastEnd.getFullYear() - effectiveStart.getFullYear()) * 12 + (lastEnd.getMonth() - effectiveStart.getMonth()) + 1),
+  };
 };
 let startDate = parseStartDate(startDateParam);
 const validStartDate = Boolean(startDate);
@@ -71,7 +90,10 @@ const invalidStartDateNote = startDateParam && !validStartDate
   ? 'The start date in the URL could not be read. Expected a date like startDate=2027-07-01.'
   : '';
 let currentStartDateValue = validStartDate ? startDateParam : null;
-let { weeks: weeksRemaining, factor: scaleFactor } = computeScaling(startDate);
+let {
+  weeks: weeksRemaining, factor: scaleFactor, terms: termsRemaining,
+  spanWeeks: weeksForPeriods, months: monthsRemaining,
+} = computeScaling(startDate);
 const scale = (amount) => Math.round(amount * scaleFactor * 100) / 100;
 
 const schoolChildCount = () => Number(document.querySelector('#pledge-form [name="schoolChildCount"]')?.value || 0);
@@ -108,7 +130,10 @@ function applyStartDate(value) {
   const date = parseStartDate(value);
   startDate = date;
   currentStartDateValue = date ? value : null;
-  ({ weeks: weeksRemaining, factor: scaleFactor } = computeScaling(date));
+  ({
+    weeks: weeksRemaining, factor: scaleFactor, terms: termsRemaining,
+    spanWeeks: weeksForPeriods, months: monthsRemaining,
+  } = computeScaling(date));
   const note = document.querySelector('#start-date-note');
   if (note) {
     const input = note.querySelector('#start-date-input');
@@ -200,9 +225,10 @@ function dynamicContributionRows() {
   document.querySelector('#disbursement-rows').innerHTML = Array.from({ length: schoolCount + kindergartenCount }, (_, index) => {
     const source = index < schoolCount ? `school${index + 1}Name` : `kindergarten${index - schoolCount + 1}Name`;
     const fieldName = source.replace('Name', 'Disbursement');
-    const current = form.querySelector(`[name="${fieldName}"]`)?.value || scale(pledgeRules.disbursementPerChild);
+    const recommended = scale(pledgeRules.disbursementPerChild);
+    const current = userEditedAmounts.has(fieldName) ? form.querySelector(`[name="${fieldName}"]`)?.value : recommended;
     const childName = form.querySelector(`[name="${source}"]`)?.value.trim() || `Child ${index + 1}`;
-    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(scale(pledgeRules.disbursementPerChild))}</span><input name="${fieldName}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
+    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(recommended)}</span><input name="${fieldName}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
   }).join('') || '<p class="muted">Add students above to see disbursement amounts.</p>';
   syncLinkedNames();
 }
@@ -308,17 +334,44 @@ function updateCustodySection() {
   });
 }
 
+function adminPanelHTML() {
+  return `
+    <section class="card admin-panel" aria-label="Admin tools">
+      <h2>Admin Panel</h2>
+      <div class="admin-tool">
+        <h3>Mid-year start link</h3>
+        <p class="muted">Generate a link for families joining partway through the year. Recommended amounts are pro-rated to the weeks remaining from this date.</p>
+        <div class="admin-row">
+          <input type="date" id="admin-start-date" value="${startDateParam || ''}" aria-label="Start date" />
+          <button type="button" id="admin-generate-link">Generate link</button>
+        </div>
+        <div class="admin-row">
+          <input type="text" id="admin-link-output" readonly placeholder="Generated link will appear here" aria-label="Generated link" />
+          <button type="button" id="admin-copy-link">Copy link</button>
+        </div>
+      </div>
+      <div class="admin-tool">
+        <h3>Load pledge data</h3>
+        <p class="muted">Load a saved submission JSON file to repopulate the form for reprinting or processing. Accepts either a submission payload or a flat form object.</p>
+        <input type="file" id="admin-json-file" accept="application/json,.json" aria-label="Load pledge data JSON file" />
+        <p class="admin-output" id="admin-load-output" role="status" aria-live="polite"></p>
+      </div>
+    </section>`;
+}
+
 function render() {
   app.innerHTML = `
     <div class="shell">
       <header class="hero">
         <h1>Special Character Pledge Form <em>${pledgeRules.year}</em></h1>
         <p class="intro">This is a digital version of the Special Character Pledge Form, replacing previous years paper copy.</p>
-        ${pledgeRules.returnBy ? `<p class="return-by">${t(labels.returnByTop, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}
-        <p class="draft-warning"><strong>Draft form:</strong> This form is currently in development and not yet live. Do not submit real pledges until this notice is removed.</p>
+        ${pledgeRules.returnBy && !validStartDate ? `<p class="return-by">${t(labels.returnByTop, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}
+        ${isDraft ? '<p class="draft-warning"><strong>Draft form:</strong> This form is currently in development and not yet live. Do not submit real pledges until this notice is removed.</p>' : ''}
         <div class="status" role="status" aria-live="polite"><span class="status-dot"></span><span id="save-status">Ready to begin</span></div>
         ${isDev ? '<button type="button" id="dev-fill" class="dev-fill">Load test data</button>' : ''}
       </header>
+
+      ${isAdmin ? adminPanelHTML() : ''}
       <form id="pledge-form">
         <section class="card accent-card">
           ${sectionHead('01')}
@@ -396,7 +449,7 @@ function render() {
           ${expandable(labels.disbursementInfoTitle, labels.disbursementInfoBody)}
           <div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="disbursement-rows"></div></div>
            <h3 class="amounts-heading">${t(labels.paymentHeading)}</h3>
-           <input type="hidden" name="totalPledge" /><div class="price-summary total-summary" aria-live="polite"><div class="total-summary-title">${t(labels.totalPledgeHeading)}</div><div><span>${t(labels.perYear)}</span><strong id="year-total">$0.00</strong></div><div><span>${t(labels.perTerm)}</span><strong id="term-total">$0.00</strong><small>Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>${t(labels.perWeek)}</span><strong id="week-total">$0.00</strong><small>Total divided by ${pledgeRules.schoolYearWeeks} weeks of the school year</small></div></div>
+           <input type="hidden" name="totalPledge" /><div class="price-summary total-summary" aria-live="polite"><div class="total-summary-title">${t(labels.totalPledgeHeading)}</div><div><span>${t(labels.perYear)}</span><strong id="year-total">$0.00</strong></div><div><span>${t(labels.perTerm)}</span><strong id="term-total">$0.00</strong><small id="term-total-note">Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>${t(labels.perWeek)}</span><strong id="week-total">$0.00</strong><small id="week-total-note">Total divided by ${pledgeRules.schoolYearWeeks} weeks of the school year</small></div></div>
 <fieldset><legend>${labels.paymentPlan}</legend><p class="muted" data-template="${encodeURIComponent(labels.paymentPlanNote)}">${t(labels.paymentPlanNote)}</p>${paymentPlanOptions.map((option) => `<label class="check"><input type="radio" name="paymentPlan" value="${option.label}" required /> <span>${option.label} <em class="plan-price" data-plan="${option.key}"></em></span></label>`).join('')}</fieldset>
            ${field(labels.pledgeComments, 'pledgeComments', 'textarea')}
            <p class="fine-print" data-template="${encodeURIComponent(labels.pledgeCommentsNote)}">${t(labels.pledgeCommentsNote)}</p>
@@ -412,7 +465,7 @@ function render() {
           <p class="fine-print">Submissions are sent securely to the school’s configured service.</p>
         </section>
       </form>
-      <footer>${pledgeRules.returnBy ? `<p class="return-by reminder">${t(labels.returnByBottom, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}</footer>
+      <footer>${pledgeRules.returnBy && !validStartDate ? `<p class="return-by reminder">${t(labels.returnByBottom, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}</footer>
     </div>`;
 }
 
@@ -492,34 +545,58 @@ function saveDraft() {
   }
 }
 
+function applyFormValues(data) {
+  const form = document.querySelector('#pledge-form');
+  ['schoolChildCount', 'kindergartenChildCount'].forEach((name) => {
+    const input = form.querySelector(`[name="${name}"]`);
+    if (input && data[name] !== undefined && data[name] !== '') input.value = data[name];
+  });
+  dynamicChildren();
+  const custodyToggle = form.querySelector('[name="custodyApplies"]');
+  if (custodyToggle) custodyToggle.checked = data.custodyApplies === 'on';
+  const custodyCountInput = form.querySelector('[name="custodyArrangementCount"]');
+  if (custodyCountInput && data.custodyArrangementCount) custodyCountInput.value = data.custodyArrangementCount;
+  updateCustodySection();
+  Object.entries(data).forEach(([name, value]) => {
+    const input = form.querySelector(`[name="${name}"]`);
+    if (!input) return;
+    if (input.type === 'checkbox') input.checked = value === 'on';
+    else if (input.type === 'radio') {
+      form.querySelectorAll(`[name="${name}"]`).forEach((radio) => {
+        radio.checked = value !== 'off' && radio.value === value;
+      });
+    } else {
+      input.value = value;
+    }
+  });
+  syncLinkedNames();
+  calculateTotals();
+}
+
 function restoreDraft() {
   try {
     const draft = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    ['schoolChildCount', 'kindergartenChildCount'].forEach((name) => {
-      const input = document.querySelector(`[name="${name}"]`);
-      if (input && draft[name]) input.value = draft[name];
-    });
-    dynamicChildren();
-    const custodyToggle = document.querySelector('[name="custodyApplies"]');
-    if (custodyToggle) custodyToggle.checked = draft.custodyApplies === 'on';
-    const custodyCountInput = document.querySelector('[name="custodyArrangementCount"]');
-    if (custodyCountInput && draft.custodyArrangementCount) custodyCountInput.value = draft.custodyArrangementCount;
-    updateCustodySection();
-    Object.entries(draft).forEach(([name, value]) => {
-      const input = document.querySelector(`[name="${name}"]`);
-      if (!input) return;
-      if (input.type === 'checkbox') input.checked = value === 'on';
-      else if (input.type === 'radio') {
-        document.querySelectorAll(`[name="${name}"]`).forEach((radio) => {
-          radio.checked = value !== 'off' && radio.value === value;
-        });
-      } else {
-        input.value = value;
-      }
-    });
+    applyFormValues(draft);
     if (Object.keys(draft).length) document.querySelector('#save-status').textContent = 'Draft restored from this device';
-    calculateTotals();
   } catch { /* Ignore malformed or unavailable local drafts. */ }
+}
+
+function generateStartDateLink() {
+  const value = document.querySelector('#admin-start-date')?.value;
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  if (value) url.searchParams.set('startDate', value);
+  return url.toString();
+}
+
+async function loadPledgeJsonFile(file) {
+  const parsed = JSON.parse(await file.text());
+  if (!parsed || typeof parsed !== 'object') throw new Error('Expected a JSON object');
+  const data = parsed.form && typeof parsed.form === 'object' ? parsed.form : parsed;
+  if (parsed.startDate) applyStartDate(parsed.startDate);
+  applyFormValues(data);
+  saveDraft();
 }
 
 function calculateTotals() {
@@ -533,15 +610,20 @@ function calculateTotals() {
   if (total) total.value = amountTotal + disbursementTotal + donation;
   const annualTotal = Number(total?.value || 0);
   document.querySelector('#year-total').textContent = money(annualTotal);
-  const termTotal = annualTotal / pledgeRules.termsPerYear;
-  const weekTotal = annualTotal / pledgeRules.schoolYearWeeks;
+  const termTotal = annualTotal / termsRemaining;
+  const weekTotal = annualTotal / weeksForPeriods;
   document.querySelector('#term-total').textContent = money(termTotal);
   document.querySelector('#week-total').textContent = money(weekTotal);
+  const remaining = startDate ? ' remaining' : '';
+  const termNote = document.querySelector('#term-total-note');
+  if (termNote) termNote.textContent = `Total divided by ${termsRemaining} term${termsRemaining === 1 ? '' : 's'}${remaining}`;
+  const weekNote = document.querySelector('#week-total-note');
+  if (weekNote) weekNote.textContent = `Total divided by ${weeksForPeriods} week${weeksForPeriods === 1 ? '' : 's'} of the school year${remaining}`;
   const periodCounts = {
-    week: pledgeRules.schoolYearWeeks,
-    fortnight: Math.ceil(pledgeRules.schoolYearWeeks / 2),
-    month: schoolYearMonths,
-    term: pledgeRules.termsPerYear,
+    week: weeksForPeriods,
+    fortnight: Math.ceil(weeksForPeriods / 2),
+    month: monthsRemaining,
+    term: termsRemaining,
     lump: 1,
   };
   paymentPlanOptions.forEach((option) => {
@@ -694,6 +776,33 @@ document.querySelector('#dev-fill')?.addEventListener('click', () => {
 document.querySelector('#custody-arrangements')?.addEventListener('click', (event) => {
   if (event.target.classList.contains('remove-custody-arrangement')) {
     removeCustodyArrangement(Number(event.target.dataset.index));
+  }
+});
+
+document.querySelector('#admin-generate-link')?.addEventListener('click', () => {
+  document.querySelector('#admin-link-output').value = generateStartDateLink();
+});
+document.querySelector('#admin-copy-link')?.addEventListener('click', async () => {
+  const input = document.querySelector('#admin-link-output');
+  const button = document.querySelector('#admin-copy-link');
+  if (!input.value) input.value = generateStartDateLink();
+  try {
+    await navigator.clipboard.writeText(input.value);
+  } catch {
+    input.select();
+    document.execCommand('copy');
+  }
+  button.textContent = 'Copied';
+});
+document.querySelector('#admin-json-file')?.addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  const output = document.querySelector('#admin-load-output');
+  if (!file) return;
+  try {
+    await loadPledgeJsonFile(file);
+    output.textContent = `Loaded ${file.name}`;
+  } catch (error) {
+    output.textContent = `Could not load file: ${error.message}`;
   }
 });
 

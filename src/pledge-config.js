@@ -1,7 +1,7 @@
 // Keep the school's published pledge amounts here so they can be reviewed without
 // having to change the form rendering code.
 
-export const money = (amount) => `$${Number(amount || 0).toLocaleString('en-NZ', { minimumFractionDigits: 2 })}`;
+export const money = (amount) => `$${Number(amount || 0).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // Editable base price and discount schedule. Recommended amounts are calculated from these.
 const baseAmount = 4100;
@@ -22,7 +22,7 @@ const kindergartenRecommendedByDays = {
 const schoolYearTerms = [
   // Ministry of Education 2027 school terms (education.govt.nz/school-terms-and-holidays-dates).
   // Schools choose their own Term 1 start (28 Jan – 3 Feb) and Term 4 end (no later than 17 Dec).
-  { start: '2027-01-27', end: '2027-04-09' },
+  { start: '2027-02-02', end: '2027-04-09' },
   { start: '2027-04-27', end: '2027-07-02' },
   { start: '2027-07-19', end: '2027-09-24' },
   { start: '2027-10-11', end: '2027-12-17' },

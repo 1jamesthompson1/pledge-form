@@ -142,7 +142,7 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   email: 'Email address',
   count: 'Count',
   startDate: 'Start date',
-  startDateSummary: 'Recommended amounts cover {weeks} of {totalWeeks} weeks of the {year} school year.',
+  startDateSummary: 'Recommended amounts cover {weeks} of {totalWeeks} teaching weeks of the {year} school year.',
   noStartDateNote: 'No start date set — full recommended amounts apply.',
   pledgeAmounts: 'Special Character Donation',
   pledgeOtherCostsNote: 'Other costs such as camps, trips and cultural events may incur additional costs. These costs will be advised at the time, and are to be paid via Kindo.',
