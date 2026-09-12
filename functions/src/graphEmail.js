@@ -1,6 +1,8 @@
 import { ClientSecretCredential } from '@azure/identity';
 import { money, pledgeRules } from './pledgeConfig.js';
-import { interpolate, consentGroups, eotcStatementsSchool, eotcStatementsKindergarten } from './formDefinition.js';
+import {
+  interpolate, consentGroups, eotcStatementsSchool, eotcStatementsKindergarten, childWord, theirFacePhrase,
+} from './formDefinition.js';
 
 const tenantId = process.env.AZURE_TENANT_ID;
 const clientId = process.env.AZURE_CLIENT_ID;
@@ -73,7 +75,12 @@ function buildBody(pledge) {
   for (const [label, key, statements] of UNTICKED_PERMISSIONS) {
     statements.forEach((text, index) => {
       if (pledge[`${key}-${index}`] !== 'on') {
-        notConsented.push(`- ${label}: ${interpolate(text, { schoolName: pledgeRules.schoolName, year: pledgeRules.year })}`);
+        notConsented.push(`- ${label}: ${interpolate(text, {
+          schoolName: pledgeRules.schoolName,
+          year: pledgeRules.year,
+          child: childWord(schoolCount + kindergartenCount),
+          theirFace: theirFacePhrase(schoolCount + kindergartenCount),
+        })}`);
       }
     });
   }

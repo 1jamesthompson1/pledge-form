@@ -7,6 +7,7 @@
 // Templating: every string is written with {token} placeholders and resolved
 // at render time via interpolate(). Standard tokens provided everywhere:
 //   {year}, {schoolName}, {child} (child/children by total count),
+//   {theirFace} (their face is / their faces are by total count),
 //   {schoolChild}, {kindergartenChild} (per-group counts), {n}, {date},
 //   {termStart}, {weeks}, {totalWeeks}
 // Unfinished copy is marked with the consistent "PLACEHOLDER: ..." prefix.
@@ -15,6 +16,8 @@ export const interpolate = (template, vars = {}) =>
   template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] === undefined ? '' : String(vars[key])));
 
 export const childWord = (count) => (count === 1 ? 'child' : 'children');
+
+export const theirFacePhrase = (count) => (count === 1 ? 'their face is' : 'their faces are');
 
 export const formatLongDate = (isoDate) => {
   if (!isoDate) return '';
@@ -79,9 +82,10 @@ export const consentGroups = {
     'Act in accordance with school rules, procedures, and legal obligations.',
   ],
   photos: [
-    'I give permission for my {child} to be photographed at {schoolName} and EOTC events.',
-    'I give consent for photographs of my {child} to be published on the {schoolName} website or in the newsletter (when childrens names are used in the text it will be first name only).',
-    'I give consent for photographs of my {child} to be displayed on social media for example Facebook and Instagram (no names will be used).'
+    "I give consent for my {child} to be photographed at kindergarten or school, including during EOTC events (walks, excursions, etc.).",
+    "I give consent for photographs of my {child} to be published on the school's website or in the school newsletter. When names are used in the text, only first names will be used.",
+    "I give consent for photographs of my {child} to be used on the school's social media platforms (e.g., Instagram and Facebook), where my {child} may appear in the background or from the side and {theirFace} not recognisable. No names will be used.",
+    "I give consent for photographs of my {child} to be used on the school's social media platforms (e.g., Instagram and Facebook), where my {child} may be clearly identifiable and {theirFace} visible. No names will be used.",
   ],
 };
 

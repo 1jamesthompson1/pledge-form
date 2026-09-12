@@ -3,6 +3,7 @@ import { money, pledgeRules } from './pledge-config.js';
 import {
   interpolate, formatLongDate, formatLongDateOrdinal, sections, sectionTitle, consentGroups,
   eotcStatementsSchool, eotcStatementsKindergarten, eotcLegends, labels, childWord,
+  theirFacePhrase,
 } from './form-definition.js';
 import examplePledge from './example-data.json';
 
@@ -84,6 +85,7 @@ const t = (template, vars = {}) => interpolate(template, {
   year: pledgeRules.year,
   schoolName: pledgeRules.schoolName,
   child: childWord(childCount()),
+  theirFace: theirFacePhrase(childCount()),
   schoolChild: childWord(schoolChildCount()),
   kindergartenChild: childWord(kindergartenChildCount()),
   ...vars,
@@ -126,7 +128,7 @@ function field(label, name, type = 'text', options = {}) {
     ? `<textarea name="${name}" rows="2" ${options.required ? 'required' : ''}></textarea>`
     : type === 'select'
       ? `<select name="${name}" ${options.required ? 'required' : ''}>${(options.options || []).map((opt) => `<option value="${opt.value}" ${opt.selected ? 'selected' : ''}>${opt.label}</option>`).join('')}</select>`
-      : `<input name="${name}" type="${type}" ${options.required ? 'required' : ''} ${options.readonly ? 'readonly' : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} ${options.max !== undefined ? `max="${options.max}"` : ''} />`;
+      : `<input name="${name}" type="${type}" ${type === 'number' ? 'inputmode="numeric" pattern="[0-9]*"' : ''} ${options.required ? 'required' : ''} ${options.readonly ? 'readonly' : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} ${options.max !== undefined ? `max="${options.max}"` : ''} />`;
   return `<label><span class="field-label">${t(label)}${options.required ? ' <span aria-hidden="true">*</span>' : ''}</span>${control}</label>`;
 }
 
@@ -192,7 +194,7 @@ function dynamicContributionRows() {
     const amountName = `${kind}${number}Amount`;
     const selected = userEditedAmounts.has(amountName) ? currentAmount : recommended;
     const childName = form.querySelector(`[name="${sourceName}"]`)?.value.trim() || `${kind === 'school' ? 'School' : 'Kindergarten / Nursery'} child ${number}`;
-    return `<div class="amount-row"><span class="linked-name" data-source="${sourceName}">${childName}</span><span class="recommended">Recommended: ${money(recommended)}</span><input name="${kind}${number}Amount" type="number" min="0" step="1" value="${selected}" aria-label="Agreed amount for ${kind} child ${number}" required /></div>`;
+    return `<div class="amount-row"><span class="linked-name" data-source="${sourceName}">${childName}</span><span class="recommended">Recommended: ${money(recommended)}</span><input name="${kind}${number}Amount" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="${selected}" aria-label="Agreed amount for ${kind} child ${number}" required /></div>`;
   }).join('');
   document.querySelector('#pledge-rows').innerHTML = `${rows('school', schoolCount)}${rows('kindergarten', kindergartenCount)}` || '<p class="muted">Add students above to see pledge amounts.</p>';
   document.querySelector('#disbursement-rows').innerHTML = Array.from({ length: schoolCount + kindergartenCount }, (_, index) => {
@@ -200,7 +202,7 @@ function dynamicContributionRows() {
     const fieldName = source.replace('Name', 'Disbursement');
     const current = form.querySelector(`[name="${fieldName}"]`)?.value || scale(pledgeRules.disbursementPerChild);
     const childName = form.querySelector(`[name="${source}"]`)?.value.trim() || `Child ${index + 1}`;
-    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(scale(pledgeRules.disbursementPerChild))}</span><input name="${fieldName}" type="number" min="0" step="1" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
+    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(scale(pledgeRules.disbursementPerChild))}</span><input name="${fieldName}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
   }).join('') || '<p class="muted">Add students above to see disbursement amounts.</p>';
   syncLinkedNames();
 }
@@ -638,9 +640,14 @@ form.addEventListener('input', (event) => {
   saveDraft();
 });
 form.addEventListener('keydown', (event) => {
-  if (event.target.type === 'number' && ['e', 'E', '+', '-', '.'].includes(event.key)) {
-    event.preventDefault();
-  }
+  if (event.target.type !== 'number') return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.key.length === 1 && !/[0-9]/.test(event.key)) event.preventDefault();
+});
+form.addEventListener('beforeinput', (event) => {
+  if (event.target.type !== 'number') return;
+  const inserted = event.data ?? event.dataTransfer?.getData('text') ?? '';
+  if (inserted && /\D/.test(inserted)) event.preventDefault();
 });
 form.addEventListener('paste', (event) => {
   if (event.target.type !== 'number') return;
