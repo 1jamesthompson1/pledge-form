@@ -1,6 +1,8 @@
 {
   "form": {
     "parentName": "Test Parent",
+    "otherParentName": "Test Parent Two",
+    "familyType": "together",
     "email": "test@example.com",
     "schoolChildCount": "3",
     "kindergartenChildCount": "1",

@@ -154,7 +154,10 @@ function field(label, name, type = 'text', options = {}) {
     : type === 'select'
       ? `<select name="${name}" ${options.required ? 'required' : ''}>${(options.options || []).map((opt) => `<option value="${opt.value}" ${opt.selected ? 'selected' : ''}>${opt.label}</option>`).join('')}</select>`
       : `<input name="${name}" type="${type}" ${type === 'number' ? 'inputmode="numeric" pattern="[0-9]*"' : ''} ${options.required ? 'required' : ''} ${options.readonly ? 'readonly' : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} ${options.max !== undefined ? `max="${options.max}"` : ''} />`;
-  return `<label><span class="field-label">${t(label)}${options.required ? ' <span aria-hidden="true">*</span>' : ''}</span>${control}</label>`;
+  const tooltip = options.tooltip
+    ? ` <span class="tooltip" tabindex="0" role="note" aria-label="${t(options.tooltip)}">i<span class="tooltip-text" role="tooltip">${t(options.tooltip)}</span></span>`
+    : '';
+  return `<label><span class="field-label">${t(label)}${options.required ? ' <span aria-hidden="true">*</span>' : ''}${tooltip}</span>${control}</label>`;
 }
 
 function sectionHead(number) {
@@ -196,8 +199,11 @@ function dynamicChildren() {
   document.querySelector('#school-children').innerHTML = rows('school', schoolCount) || `<p class="muted">${labels.noSchoolChildren}</p>`;
   document.querySelector('#kindergarten-children').innerHTML = rows('kindergarten', kindergartenCount) || `<p class="muted">${labels.noKindergartenChildren}</p>`;
   Object.entries(existing).forEach(([name, value]) => {
-    const input = document.querySelector(`[name="${name}"]`);
-    if (input) input.value = value;
+    document.querySelectorAll(`#pledge-form [name="${name}"]`).forEach((input) => {
+      if (input.type === 'radio') input.checked = input.value === value;
+      else if (input.type === 'checkbox') input.checked = value === 'on';
+      else input.value = value;
+    });
   });
   dynamicContributionRows();
   dynamicMedicalInfoRows();
@@ -321,7 +327,7 @@ function updateCustodySection() {
       <fieldset><legend>${labels.custodyChildrenAffected}</legend>${childrenCheckboxes}</fieldset>
       ${field(labels.custodyLivingArrangements, `custody-${index}-livingArrangements`, 'textarea', { required: true })}
       ${field(labels.custodyLegalRestrictions, `custody-${index}-legalRestrictions`, 'textarea', { required: true })}
-      ${field(labels.custodyFinancialArrangements, `custody-${index}-financialArrangements`, 'textarea', { required: true })}
+      ${field(labels.custodyFinancialArrangements, `custody-${index}-financialArrangements`, 'textarea', { required: true, tooltip: labels.custodyFinancialTooltip })}
       ${field(labels.custodyExplanation, `custody-${index}-explanation`, 'textarea')}
       ${index > 0 ? `<button type="button" class="remove-custody-arrangement" data-index="${index}">${labels.custodyRemove}</button>` : ''}
     </div>`;
@@ -332,6 +338,22 @@ function updateCustodySection() {
     if (input && input.type !== 'checkbox' && input.type !== 'radio') input.value = value;
     if (input && (input.type === 'checkbox' || input.type === 'radio')) input.checked = Boolean(value);
   });
+}
+
+function updateSeparateFamilySection() {
+  const selected = document.querySelector('[name="familyType"]:checked')?.value;
+  const other = document.querySelector('[name="otherParentName"]');
+  const together = selected === 'together';
+  const split = selected === 'split';
+  if (other) {
+    const wrapper = other.closest('label');
+    if (wrapper) wrapper.hidden = !together;
+    other.disabled = !together;
+    other.required = together;
+    if (!together) other.value = '';
+  }
+  const paymentNote = document.querySelector('#split-payment-note');
+  if (paymentNote) paymentNote.hidden = !split;
 }
 
 function adminPanelHTML() {
@@ -376,6 +398,11 @@ function render() {
         <section class="card accent-card">
           ${sectionHead('01')}
           <div class="grid two">${field(labels.parentName, 'parentName', 'text', { required: true })}${field(labels.email, 'email', 'email', { required: true })}</div>
+          <fieldset class="family-type"><legend>${labels.familyTypeLegend}</legend>
+            <label class="check"><input type="radio" name="familyType" value="together" required /> <span>${labels.familyTogether}</span></label>
+            <label class="check"><input type="radio" name="familyType" value="split" required /> <span>${labels.familySplit}</span></label>
+          </fieldset>
+          ${field(labels.otherParentName, 'otherParentName', 'text', { required: true })}
           <h3>${labels.childrenQuestion}</h3><div class="grid two"><label>${labels.schoolChildren}<select name="schoolChildCount" required>${Array.from({ length: pledgeRules.maxChildrenPerGroup + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select></label><label>${labels.kindergartenChildren}<select name="kindergartenChildCount" required>${Array.from({ length: pledgeRules.maxChildrenPerGroup + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select></label></div>
           <h3>${labels.schoolChildren}</h3><div id="school-children"></div><h3>${labels.kindergartenChildren}</h3><div id="kindergarten-children"></div>
         </section>
@@ -437,6 +464,7 @@ function render() {
         </section>
 
         <section class="card">${sectionHead('10')}
+          <p class="callout" id="split-payment-note" hidden>${labels.splitPaymentNote}</p>
           <p class="muted">The contributions are donation-based. Recommended amounts are a guideline, not fees. Please contact the Trust Administrator if you need to discuss financial hardship.<br><br>As these are donations you may be able to claim back up to 33% of the amount as a donation tax credit from IRD.</p>
           <p class="muted" data-template="${encodeURIComponent(labels.pledgeOtherCostsNote)}">${t(labels.pledgeOtherCostsNote)}</p>
           ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">${t(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}
@@ -519,7 +547,8 @@ function formData() {
     } else if (input.type === 'checkbox') {
       data[input.name] = input.checked ? 'on' : 'off';
     } else if (input.type === 'radio') {
-      data[input.name] = input.checked ? input.value : 'off';
+      if (input.checked) data[input.name] = input.value;
+      else if (data[input.name] === undefined) data[input.name] = 'off';
     } else {
       data[input.name] = input.value;
     }
@@ -569,6 +598,7 @@ function applyFormValues(data) {
       input.value = value;
     }
   });
+  updateSeparateFamilySection();
   syncLinkedNames();
   calculateTotals();
 }
@@ -754,6 +784,7 @@ form.addEventListener('change', (event) => {
   if (event.target.id === 'start-date-input') applyStartDate(event.target.value);
   if (event.target.name === 'schoolChildCount' || event.target.name === 'kindergartenChildCount') dynamicChildren();
   if (event.target.name === 'schoolChildCount' || event.target.name === 'kindergartenChildCount' || event.target.name === 'custodyApplies') updateCustodySection();
+  if (event.target.name === 'familyType') updateSeparateFamilySection();
   if (/^kindergarten\d+Days$/.test(event.target.name)) {
     const amount = scale(pledgeRules.kindergarten.recommendedByDays[event.target.value]);
     const amountInput = form.querySelector(`[name="${event.target.name.replace('Days', 'Amount')}"]`);
@@ -766,6 +797,7 @@ form.addEventListener('change', (event) => {
 });
 form.addEventListener('submit', submit);
 dynamicChildren();
+updateSeparateFamilySection();
 calculateTotals();
 
 document.querySelector('#add-custody-arrangement')?.addEventListener('click', addCustodyArrangement);
