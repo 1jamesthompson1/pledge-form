@@ -589,6 +589,15 @@ function showSubmissionPopup(payload, onSend) {
 async function submit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  if (childCount() === 0) {
+    const status = document.querySelector('#save-status');
+    if (status) {
+      status.textContent = 'Please add at least one child (school or kindergarten) before submitting';
+      status.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    document.querySelector('[name="schoolChildCount"]')?.focus();
+    return;
+  }
   if (!form.reportValidity()) return;
   if (isDev && !devPayloadConfirmed) {
     devPayloadConfirmed = true;

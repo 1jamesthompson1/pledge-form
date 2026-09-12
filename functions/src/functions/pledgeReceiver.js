@@ -5,6 +5,7 @@ import { sendPledgeNotification } from '../graphEmail.js';
 import { buildPledgePdf } from '../pledgeRender.js';
 import { persistSubmission, newSubmissionId } from '../blobStore.js';
 import { createAuditEntry, updateAuditEntry, partitionKeyFor } from '../auditTable.js';
+import { pledgeRules } from '../pledgeConfig.js';
 
 const requiredFields = [
   'parentName',
@@ -31,10 +32,23 @@ function validate(payload) {
     }
   }
 
-  const schoolCount = Number(payload.schoolChildCount) || 0;
-  const kindergartenCount = Number(payload.kindergartenChildCount) || 0;
-  if (schoolCount + kindergartenCount === 0) {
-    errors.push('At least one child must be added');
+  const maxChildren = pledgeRules.maxChildrenPerGroup;
+  const parseCount = (value) => {
+    if (value === undefined || value === null || value === '') return NaN;
+    return Number(value);
+  };
+  const schoolCount = parseCount(payload.schoolChildCount);
+  const kindergartenCount = parseCount(payload.kindergartenChildCount);
+
+  const invalidCount = (value) => !Number.isInteger(value) || value < 0 || value > maxChildren;
+  if (invalidCount(schoolCount)) {
+    errors.push(`schoolChildCount must be a whole number between 0 and ${maxChildren}`);
+  }
+  if (invalidCount(kindergartenCount)) {
+    errors.push(`kindergartenChildCount must be a whole number between 0 and ${maxChildren}`);
+  }
+  if (!invalidCount(schoolCount) && !invalidCount(kindergartenCount) && schoolCount + kindergartenCount === 0) {
+    errors.push('At least one child (school or kindergarten) must be added');
   }
 
   if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
