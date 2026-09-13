@@ -393,6 +393,13 @@ function adminPanelHTML() {
         <p class="admin-output" id="admin-load-output" role="status" aria-live="polite"></p>
       </div>
       <div class="admin-tool">
+        <h3>Load test data</h3>
+        <p class="muted">Fill the form with the committed sample answers (same as the <code>?dev=1</code> query string) to test the submission pipeline.</p>
+        <div class="admin-row">
+          <button type="button" id="admin-load-test-data">Load test data</button>
+        </div>
+      </div>
+      <div class="admin-tool">
         <h3>Blank hand-fill form</h3>
         <p class="muted">Print a blank form with 3 school children and 2 Kindergarten / Nursery children, ready to be completed by hand. This clears the answers currently in the form.</p>
         <div class="admin-row">
@@ -1101,6 +1108,11 @@ document.querySelector('#admin-json-file')?.addEventListener('change', async (ev
   }
 });
 document.querySelector('#admin-print-blank')?.addEventListener('click', printBlankForm);
+document.querySelector('#admin-load-test-data')?.addEventListener('click', () => {
+  loadDevAnswers();
+  const status = document.querySelector('#save-status');
+  if (status) status.textContent = 'Test data loaded';
+});
 
 function loadDevAnswers() {
   const form = document.querySelector('#pledge-form');
