@@ -1,38 +1,40 @@
 # Te Ra Pledge Form
 
-An embeddable 2027 digital pledge form for Te Ra School and Te Rawhiti Kindergarten.
+An embeddable 2027 digital pledge form for Te Rāwhiti Kindergarten and Te Rā School.
 
-Made 
+Made by James Thompson as a gift to the school community.
 
 ## Local development
+
+### Form (repo root)
 
 ```sh
 npm install
 cp .env.example .env   # optional; sets local endpoint, contact email and dev mode
-npm run dev
+npm run dev            # start the dev server (prints an HTTPS URL)
+npm run build          # build the self-contained dist/index.html
+npm run lint           # eslint
 ```
 
-The `.env` file supplies the dev-only runtime config — `VITE_SUBMIT_URL`, `VITE_CONTACT_EMAIL` and `VITE_DEV=true` — which the dev server injects as `window.PLEDGE_CONFIG`. With `VITE_DEV=true` a discreet **Load test data** button appears next to the save status; one press fills the whole form with sample answers (same data as the `?dev=1` query string, which still works for testing the submission endpoint).
+### Backend (Azure Functions, optional)
+
+```sh
+cd functions
+npm install
+npm run sync:config    # generate pledgeConfig.js, formDefinition.js, formVersion.js and pledgeForm.html
+npm test               # render the example pledge to a PDF
+npm start              # serve http://localhost:7071
+```
+
+The function uses the Azure Storage emulator: run `npm i -g azurite && azurite --silent` in another terminal before `npm start` (see `functions/README.md`). Point the form at the local backend with `VITE_SUBMIT_URL=http://localhost:7071/api/pledges` in `.env`.
+
+The `.env` file supplies the dev-only runtime config — `VITE_SUBMIT_URL`, `VITE_CONTACT_EMAIL`, `VITE_DEV=true` and `VITE_DRAFT=true` — which the dev server injects as `window.PLEDGE_CONFIG`. With `VITE_DEV=true` a discreet **Load test data** button appears next to the save status; one press fills the whole form with sample answers (same data as the `?dev=1` query string). The submission endpoint always comes from `window.PLEDGE_CONFIG.submitUrl`; there is no query-string override.
 
 Open the HTTPS URL printed by Vite. The development server uses a local certificate so it behaves more like the HTTPS Squarespace deployment. Your browser may show a certificate warning the first time.
 
-Build the self-contained file with:
-
-```sh
-npm run build
-```
-
-The generated `dist/index.html` contains the HTML, CSS and JavaScript in one self-contained file. It is git-ignored (the dev build stays local) and is not committed to `main` — when a release is run, it is published to the `release` branch as `pledge-form.html` for jsDelivr delivery (see below).
-
 ## Embedding in Squarespace
 
-Copy the GitHub Raw link for `pledge-form.html` from the `release` branch and paste it into a Squarespace Code Block:
-
-Copy from this [url](https://raw.githubusercontent.com/1jamesthompson1/pledge-form/release/pledge-form.html)
-
-### Always up to date: no more copy and paste
-
-Alternatively, paste this Code Block **once**. It fetches the latest
+Paste this Code Block **once**. It fetches the latest
 `pledge-form.html` from the jsDelivr CDN at runtime and injects it
 directly into the page — no iframe, and future releases update automatically:
 
@@ -59,16 +61,11 @@ Notes:
   release is run, so the CDN copy matches the latest release build. The GitHub
   release asset itself (`releases/latest/download/...`) isn't used here because
   that URL serves without CORS headers, which would block the browser `fetch`.
-- `window.PLEDGE_CONFIG` is read by the bundle after the markup is injected,
-  so the endpoint and contact email can still be set here on the page.
-- Same behaviour as the copy-and-paste approach: styles are injected
-  page-globally and draft saving uses the site's own `localStorage`.
-
-The `Release` workflow runs lint and build, publishes semantic releases, and pushes the freshly built `pledge-form.html` to the `release` branch for jsDelivr delivery. There is no pre-commit hook — builds happen only in CI, and the dev build output is git-ignored.
+- `window.PLEDGE_CONFIG` is read by the bundle after the markup is injected, so the endpoint and contact email can still be set here on the page.
 
 ## Runtime configuration
 
-No endpoint or contact email is hardcoded. Before the bundled script runs, set both values on `window.PLEDGE_CONFIG`. The contact email is optional — without it the "Questions? Contact the office" footer link is omitted. The `submitUrl` is required for submissions to work:
+No endpoint or contact email is hardcoded. Before the bundled script runs, set both values on `window.PLEDGE_CONFIG`. The contact email is optional — without it the "Questions? Contact the office" footer link is omitted. The `submitUrl` is required for submissions to work. An optional `draft: true` flag shows the "Draft form" warning banner across the top of the form; leave it unset for the live form:
 
 ```html
 <script>
@@ -79,41 +76,39 @@ No endpoint or contact email is hardcoded. Before the bundled script runs, set b
 </script>
 ```
 
-You can also configure the submission endpoint via the `endpoint` query string:
-
-```text
-https://example.org/te-ra-pledge-form.html?endpoint=https%3A%2F%2Fapi.example.org%2Fpledges
-```
-
 ## Testing and development
 
-Add `?dev=1` to the URL to pre-fill the form with sample data. This is useful for testing the submission endpoint without typing every field:
+Add `?dev=1` to the URL to pre-fill the form with sample data (the same data as the **Load test data** button), which is useful for testing the submission endpoint without typing every field:
 
 ```text
-https://example.org/te-ra-pledge-form.html?dev=1&endpoint=https%3A%2F%2Fapi.example.org%2Fpledges
+https://example.org/te-ra-pledge-form.html?dev=1
 ```
 
-The sample data is committed as `src/example-data.json` — it *is* the dev test data: the **Load test data** button and `?dev=1` fill the form from this file, so there is no separate hardcoded copy to keep in sync. The same file doubles as an example of the submission payload: the `form` object is exactly what the browser serializes and POSTs, and `submittedAt` / `timeOnPageMs` show the metadata added alongside it. The backend receives `{ form, submittedAt, timeOnPageMs, startDate? }` — see `functions/src/functions/pledgeReceiver.js` for how it is validated and stored.
+The sample data is committed as `src/example-data.json` — it *is* the dev test data: the **Load test data** button and `?dev=1` fill the form from this file. The same file doubles as an example of the submission payload: the `form` object is exactly what the browser serializes and POSTs, and `submittedAt` / `timeOnPageMs` show the metadata added alongside it. The backend receives `{ form, submittedAt, timeOnPageMs, startDate? }` — see `functions/src/functions/pledgeReceiver.js` for how it is validated and stored.
 
-## Backend
+## Parts of the code
 
-The optional Azure Functions backend lives in `functions/`. It receives the submitted pledge at `POST /api/pledges`, validates it, and optionally sends a notification email via Microsoft Graph. The attached PDF is generated by rendering the form itself in headless Chromium and printing it to A4, so the PDF always looks exactly like the live form (see `functions/README.md` for the lazy browser lifecycle and sync details).
+### Backend
 
-## Infrastructure
+The optional Azure Functions backend lives in `functions/`. It receives the submitted pledge at `POST /api/pledges`, validates it, and optionally sends a notification email via Microsoft Graph. The attached PDF is generated by rendering the form itself in headless Chromium and printing it to A4, so the PDF always looks exactly like the live form (see `functions/README.md` for the lazy browser lifecycle and sync details). The function records which form release it was built from and reports it at `GET /api/health` (for example `formVersion: "0.3.0"`), so you can confirm the deployed backend matches the live form.
 
-The `infra/` folder contains OpenTofu (Terraform-compatible) configuration to provision the Azure Function App, storage, Application Insights, and the Microsoft Entra app registration for Graph email. See `infra/README.md` for usage.
+### Infrastructure
 
-Alternatively, a lightweight Power Automate workflow can serve as the backend.
+The `infra/` folder contains OpenTofu (Terraform-compatible) configuration and manages the **entire** Azure setup — the Function App (Node.js 22), storage account and containers, Application Insights, CORS, the Microsoft Entra app registration for Graph email (permission, admin consent and client secret) and **all app settings**. There are no manual portal steps: edit `infra/terraform.tfvars` (for example `email_sender` and `email_admin`) and run `tofu apply`. See `infra/README.md`. Deploying the function code, version tracking and cleaning up old deployment packages are covered in `functions/README.md`.
 
-## Pricing rules
+### Actual form
+
+The actual code for for the form can be found in `src/`. The main form code is found in `src/main.js`, which imports the form definition, pricing rules, and other modules. The form is built with vanilla JS and CSS, and compiled into a single bundle for deployment.
+
+#### Pricing rules
 
 The editable pledge pricing rules are in `src/pledge-config.js`. This includes the year, school recommendations, kindergarten day rates, the per-child disbursement amount, four terms per year, and the school-year term dates. The form calculates annual, per-term, and per-week totals from those values — per week uses the whole weeks spanning the school year (first term start to last term end, e.g. 46 weeks for 2027) rather than 52 calendar weeks. The payment plan is indicative only, showing the per-period price for each option (weekly, fortnightly, monthly, termly or lump sum) based on the current total.
 
-## Form definition
+#### Form definition
 
-The form's structure lives in `src/form-definition.js` — the nine sections with their titles (whanau details, the four consent sections, contribution, emergency contacts, custody and declaration), all consent and permission wording, and every field label. The form reads it directly, and the functions backend generates its copy (`functions/src/formDefinition.js`) from it via `npm run sync:config`. The backend PDF is verified against the current form by `npm test` (builds a PDF from `src/example-data.json`), and the release workflow runs that check on every push, so the PDF cannot drift from the form's content.
+The form's structure lives in `src/form-definition.js` — the eleven sections with their titles (whanau details, the five consent and permission sections, medical information, emergency contacts, custodial arrangements, the pledge and confirmation), all consent and permission wording, and every field label. The form reads it directly, and the functions backend generates its copy (`functions/src/formDefinition.js`) from it via `npm run sync:config`. The backend PDF is verified against the current form by `npm test` in `functions/` (builds a PDF from `src/example-data.json`), and the release workflow runs that check on every push, so the PDF cannot drift from the form's content.
 
-## Mid-year start URLs
+#### Mid-year start URLs
 
 Add a `startDate` query parameter to the form URL for families joining partway through the school year. Recommended amounts are then pro-rated to the remaining weeks of the school year, calculated from the Ministry of Education term dates in `src/pledge-config.js` (term dates rounded up to whole weeks):
 
@@ -121,17 +116,13 @@ Add a `startDate` query parameter to the form URL for families joining partway t
 https://example.org/te-ra-pledge-form.html?startDate=2027-07-19
 ```
 
-When a start date is set, a note appears in the pledge section ("These recommended amounts are based on a start date of ...") and the start date is included in the submission payload. The date is editable in the form — changing it re-calculates the recommended amounts immediately. The date must be in strict `YYYY-MM-DD` format; an unreadable date shows a warning instead of silently ignoring the parameter.
+When a start date is set, a note appears in the pledge section ("These recommended amounts are based on a start date of ...") and the start date is included in the submission payload. The date is editable in the form — changing it re-calculates the recommended amounts immediately. The per-term, per-week and payment-plan amounts are also divided over the periods remaining from that date (remaining terms and remaining weeks of the school year) instead of the full year. The date must be in strict `YYYY-MM-DD` format; an unreadable date shows a warning instead of silently ignoring the parameter.
+
+#### Admin tools
+
+Open the form with `?admin=1` (or `?admin=true`) to show an admin panel at the top of the form. It offers three tools: a mid-year start-link generator (builds a shareable URL with the `startDate` parameter for families joining partway through the year), a JSON loader that repopulates the form from a saved submission payload (`{ form, ... }`) or a flat form object, for reprinting or reprocessing a pledge, and a **Print blank form** button that prints a blank hand-fill version with 3 school children and 2 Kindergarten / Nursery children (one custodial arrangement included), restoring the current answers afterwards. This is a client-side convenience only — `admin=1` is not a security boundary.
 
 ## Releases
-
-Commits follow Conventional Commits, for example:
-
-```text
-feat: add photo permission section
-fix: preserve radio button drafts
-docs: clarify embedding setup
-```
 
 Work directly on `main`. Commits follow Conventional Commits, for example:
 
@@ -152,7 +143,3 @@ npm run release
 This runs semantic-release locally: it bumps `package.json` / `package-lock.json` (via `@semantic-release/npm`), commits the bump to `main`, pushes a `vX.Y.Z` tag (via `@semantic-release/git`) and creates the GitHub Release with full release notes — every commit since the last release, not just PRs (via `@semantic-release/github`). Requires the `gh` CLI (`gh auth login` once) or a `GITHUB_TOKEN` env var. A `feat` produces a minor release, `fix` a patch release, `BREAKING CHANGE:` a major release; if there are no new `feat`/`fix` commits since the last release, nothing is published.
 
 Pushing the tag automatically triggers the **Release** GitHub workflow, which builds the bundle, creates the GitHub Release if it doesn't already exist (e.g. a manually pushed tag; with GitHub's PR-only auto notes as a fallback), pushes `pledge-form.html` to the `release` branch for jsDelivr delivery, uploads the same file as the `te-ra-pledge-form.html` release asset, and purges the jsDelivr cache. The bundle is never committed to `main`.
-
-## GitHub Pages
-
-When a release is published, the `Deploy to GitHub Pages` workflow builds the form and deploys it as a static site at `https://tera-pledge-form.sjhl.nz`. The static site is the same single-file form, so configure it the same way (e.g. with the `endpoint` query string or a `window.PLEDGE_CONFIG` snippet in the head).

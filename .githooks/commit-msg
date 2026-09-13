@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+# Enforce Conventional Commits on every commit.
+# Allowed: feat, fix, and breaking variants (feat!/fix!, with optional scope).
+# Merge, revert and semantic-release's own "chore(release):" commit are ignored.
+message_file="$1"
+first_line=$(head -n 1 "$message_file")
+
+if printf '%s\n' "$first_line" | grep -Eq '^(Merge |Revert |chore\(release\):)'; then
+  exit 0
+fi
+
+if printf '%s\n' "$first_line" | grep -Eq '^(feat|fix)(\([^)]+\))?!?: .+'; then
+  exit 0
+fi
+
+cat >&2 <<'EOF'
+ERROR: invalid commit message.
+
+Start the subject with one of:
+  feat: ...     a new feature
+  fix: ...      a bug fix
+  feat!: ...    a breaking change (also fix!: ... and feat(scope)!: ...)
+
+Examples:
+  feat: add blank hand-fill print
+  fix: blank class dropdowns on the printout
+  feat!: change the pledge payload shape
+EOF
+exit 1
