@@ -42,6 +42,7 @@ export async function createAuditEntry({ submissionId, blobName, partitionKey, p
     SubmittedAt: receivedAt || new Date().toISOString(),
     Status: 'received',
     EmailSent: '',
+    ParentEmailSent: '',
     EmailError: '',
     Errors: '',
   };
@@ -54,4 +55,19 @@ export async function updateAuditEntry({ submissionId, partitionKey, fields }) {
   const entity = await client.getEntity(partitionKey, submissionId);
   Object.assign(entity, fields);
   await client.updateEntity(entity, 'Replace');
+}
+
+// Deletes every audit entry whose partition key (the submission date,
+// YYYY-MM-DD) sorts before cutoffDate. Partition keys are date strings, so a
+// lexical "lt" comparison is a date comparison. Returns the number deleted.
+export async function deleteAuditEntriesBefore(cutoffDate) {
+  await ensureTable();
+  const client = getTableClient();
+  const entities = client.listEntities({ queryOptions: { filter: `PartitionKey lt '${cutoffDate}'` } });
+  let deleted = 0;
+  for await (const entity of entities) {
+    await client.deleteEntity(entity.partitionKey, entity.rowKey);
+    deleted += 1;
+  }
+  return deleted;
 }

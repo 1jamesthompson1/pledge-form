@@ -14,5 +14,17 @@ email_sender = "notifications@school.example"
 # Optional school address to CC (can be any email at all)
 email_admin = "school-admin@school.example"
 
+# Optional: test (?dev) submissions are sent here instead of the school office.
+# Leave empty to fall back to email_admin.
+email_dev = ""
+
+# Browser origins allowed to call the pledge API. Restrict this to the exact
+# site(s) that embed the form so other websites cannot post submissions.
+allowed_origins = ["https://www.tera.school.nz", "https://tera.school.nz"]
+
+# Privacy retention: raw submissions and audit records older than this many days
+# are deleted. Keep in step with the privacy statement (currently two years).
+retention_days = 730
+
 # Set to false if you want to create the app registration manually
 create_app_registration = true

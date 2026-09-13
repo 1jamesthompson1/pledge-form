@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
@@ -7,27 +6,55 @@ import chromium from '@sparticuz/chromium';
 const FORM_HTML = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pledgeForm.html');
 
 let browserPromise;
-async function getBrowser() {
-  if (!browserPromise) {
-    browserPromise = puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-    }).catch((error) => {
-      browserPromise = undefined;
-      throw error;
-    });
+
+async function launchBrowser() {
+  return puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
+  });
+}
+
+async function resetBrowser() {
+  const existing = browserPromise;
+  browserPromise = undefined;
+  if (!existing) return;
+  try {
+    const browser = await existing;
+    await browser.close().catch(() => {});
+  } catch {
+    // The browser was already gone.
   }
+}
+
+async function getBrowser() {
+  if (browserPromise) {
+    const browser = await browserPromise.catch(() => undefined);
+    if (browser && browser.connected) return browser;
+    await resetBrowser();
+  }
+  browserPromise = launchBrowser().catch((error) => {
+    browserPromise = undefined;
+    throw error;
+  });
   return browserPromise;
 }
 
-export async function closeBrowser() {
-  if (browserPromise) {
-    const browser = await browserPromise;
-    browserPromise = undefined;
-    await browser.close().catch(() => {});
+async function newPageWithRecovery() {
+  const browser = await getBrowser();
+  try {
+    return await browser.newPage();
+  } catch {
+    // The browser may have crashed; relaunch once and try again.
+    await resetBrowser();
+    const relaunched = await getBrowser();
+    return relaunched.newPage();
   }
+}
+
+export async function closeBrowser() {
+  await resetBrowser();
 }
 
 const FILL_SCRIPT = (fields) => `
@@ -56,9 +83,7 @@ const FILL_SCRIPT = (fields) => `
 `;
 
 export async function buildPledgePdf(pledge) {
-  const html = await readFile(FORM_HTML, 'utf8');
-  const browser = await getBrowser();
-  const page = await browser.newPage();
+  const page = await newPageWithRecovery();
   try {
     const query = pledge.startDate ? `?startDate=${encodeURIComponent(pledge.startDate)}` : '';
     await page.goto(`file://${FORM_HTML}${query}`, { waitUntil: 'load', timeout: 30000 });

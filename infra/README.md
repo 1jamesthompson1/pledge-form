@@ -13,6 +13,42 @@ This folder contains infrastructure-as-code for the Azure Function App backend.
 - Microsoft Entra app registration for Graph email sending
 - Service principal and admin consent for `Mail.Send`
 
+## Remote state (Azure Storage)
+
+Terraform state holds the storage account key and the Entra client secret, so it must not live on a laptop. It is stored in a dedicated, private Azure Storage account and read with your Azure CLI identity — no storage key is stored anywhere.
+
+Create the state account **once** (per environment). Pick a globally unique storage account name (3–24 lowercase letters and numbers) and use it consistently below:
+
+```sh
+LOCATION="australiaeast"
+RG="rg-te-ra-pledge-tfstate"
+ST="terapleadgetfstate0000"   # <-- change to a globally unique name
+
+az group create -n "$RG" -l "$LOC"
+az storage account create -n "$ST" -g "$RG" -l "$LOC" \
+  --sku Standard_LRS --min-tls-version TLS1_2 \
+  --allow-blob-public-access false --allow-shared-key-access false
+
+# Give your own login data-plane access to the state (Azure AD, no key)
+az role assignment create \
+  --assignee "$(az ad signed-in-user show --query id -o tsv)" \
+  --role "Storage Blob Data Contributor" \
+  --scope "$(az storage account show -n "$ST" -g "$RG" --query id -o tsv)"
+
+# Wait a minute for the role assignment to propagate, then create the container
+az storage container create -n tfstate --account-name "$ST" --auth-mode login
+```
+
+Then point the backend at it and initialise:
+
+```sh
+cd infra
+cp backend.tfbackend.example backend.tfbackend   # edit storage_account_name to $ST
+tofu init -backend-config=backend.tfbackend
+```
+
+`backend.tfbackend` is gitignored and contains no secret (auth is via `use_azuread_auth = true`). Every `tofu init` needs `-backend-config=backend.tfbackend`; `plan`/`apply` do not. State is kept in Azure from the first `apply`, so nothing secret is written to the local filesystem.
+
 ## Prerequisites
 
 - [OpenTofu](https://opentofu.org/docs/intro/install/) or Terraform installed

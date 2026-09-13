@@ -8,6 +8,11 @@ output "function_app_default_hostname" {
   value       = azurerm_linux_function_app.main.default_hostname
 }
 
+output "storage_account_name" {
+  description = "Storage account backing the Function App; deployment packages accumulate in its function-releases container"
+  value       = azurerm_storage_account.functions.name
+}
+
 output "api_endpoint" {
   description = "URL to use for the form submission endpoint"
   value       = "https://${azurerm_linux_function_app.main.default_hostname}/api/pledges"

@@ -24,13 +24,31 @@ resource "azurerm_storage_account" "functions" {
 
 resource "azurerm_storage_container" "pledge_submissions" {
   name                  = "pledge-submissions"
-  storage_account_name  = azurerm_storage_account.functions.name
+  storage_account_id    = azurerm_storage_account.functions.id
   container_access_type = "private"
 }
 
 resource "azurerm_storage_table" "pledge_audit" {
-  name                 = "pledgeaudit"
-  storage_account_name = azurerm_storage_account.functions.name
+  name               = "pledgeaudit"
+  storage_account_id = azurerm_storage_account.functions.id
+}
+
+resource "azurerm_storage_management_policy" "retention" {
+  storage_account_id = azurerm_storage_account.functions.id
+
+  rule {
+    name    = "delete-old-pledge-submissions"
+    enabled = true
+    filters {
+      prefix_match = ["pledge-"]
+      blob_types   = ["blockBlob"]
+    }
+    actions {
+      base_blob {
+        delete_after_days_since_modification_greater_than = var.retention_days
+      }
+    }
+  }
 }
 
 resource "azurerm_log_analytics_workspace" "main" {
@@ -62,6 +80,7 @@ resource "azurerm_linux_function_app" "main" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   service_plan_id     = azurerm_service_plan.main.id
+  https_only          = true
 
   storage_account_name       = azurerm_storage_account.functions.name
   storage_account_access_key = azurerm_storage_account.functions.primary_access_key
@@ -73,7 +92,7 @@ resource "azurerm_linux_function_app" "main" {
       node_version = "22"
     }
     cors {
-      allowed_origins = ["*"]
+      allowed_origins = var.allowed_origins
     }
   }
 
@@ -83,6 +102,8 @@ resource "azurerm_linux_function_app" "main" {
     "EMAIL_ENABLED"            = "true"
     "EMAIL_SENDER"             = var.email_sender
     "EMAIL_ADMIN"              = var.email_admin
+    "EMAIL_DEV"                = var.email_dev
+    "RETENTION_DAYS"           = tostring(var.retention_days)
     "AZURE_TENANT_ID"          = data.azuread_client_config.current.tenant_id
     "AZURE_CLIENT_ID"          = var.create_app_registration ? azuread_application.pledge_email[0].client_id : ""
     "AZURE_CLIENT_SECRET"      = var.create_app_registration ? azuread_application_password.pledge_email[0].value : ""

@@ -22,8 +22,8 @@ export const childWord = (count) => (count === 1 ? 'child' : 'children');
 export const theirFacePhrase = (count) => (count === 1 ? 'their face is' : 'their faces are');
 
 export const trustAdministratorPhrase = (email) => (email
-  ? `the Pledge form Administrator at <a href="mailto:${email}">${email}</a>`
-  : 'the Pledge form Administrator');
+  ? `the Seirian at <a href="mailto:${email}">${email}</a>`
+  : 'the pledge form administrator');
 
 export const formatLongDate = (isoDate) => {
   if (!isoDate) return '';
@@ -148,7 +148,7 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   otherParentName: 'Other parent / guardian name',
   familyTypeLegend: 'Which best describes your family situation?',
   familyTogether: 'Both parents / guardians are together and are filling out this form together.',
-  familySplit: 'Single parent, or parents / guardians are split, and each parent will fill out the form individually.',
+  familySplit: 'Split families where both parents will fill out their own form or single parent filling out their own form.',
   email: 'Email address',
   emailTooltip: 'This should be the email address that is linked to Kindo. If you want to update it, please add your new email address and you should receive an email to the new account with pledge information.',
   count: 'Count',

@@ -95,24 +95,45 @@ function buildBody(pledge) {
   return lines.join('\n');
 }
 
-export async function sendPledgeNotification(pledge, pdfBuffer) {
-  if (!sender) {
-    throw new Error('EMAIL_SENDER is not configured');
-  }
+async function getGraphToken() {
   if (!tenantId || !clientId || !clientSecret) {
     throw new Error('Azure AD credentials are not configured');
   }
-
   const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-  const token = await credential.getToken('https://graph.microsoft.com/.default');
+  return credential.getToken('https://graph.microsoft.com/.default');
+}
 
+async function sendMail(message) {
+  if (!sender) {
+    throw new Error('EMAIL_SENDER is not configured');
+  }
+  const token = await getGraphToken();
+  const response = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sender)}/sendMail`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message, saveToSentItems: true }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Graph API error ${response.status}: ${text}`);
+  }
+}
+
+export async function sendPledgeNotification(pledge, pdfBuffer) {
   const adminEmail = process.env.EMAIL_ADMIN;
-  if (!adminEmail) {
-    throw new Error('EMAIL_ADMIN is not configured — every pledge email must go to the school');
+  const devEmail = process.env.EMAIL_DEV;
+  const isDev = pledge.dev === true;
+  const recipient = isDev && devEmail ? devEmail : adminEmail;
+  if (!recipient) {
+    throw new Error('EMAIL_ADMIN is not configured (set EMAIL_DEV to route test submissions separately)');
   }
 
   const message = {
-    subject: `New pledge submission from ${pledge.parentName}`,
+    subject: `${isDev ? '[TEST] ' : ''}New pledge submission from ${pledge.parentName}`,
     body: {
       contentType: 'Text',
       content: buildBody(pledge),
@@ -123,14 +144,7 @@ export async function sendPledgeNotification(pledge, pdfBuffer) {
     toRecipients: [
       {
         emailAddress: {
-          address: adminEmail,
-        },
-      },
-    ],
-    ccRecipients: [
-      {
-        emailAddress: {
-          address: pledge.email,
+          address: recipient,
         },
       },
     ],
@@ -147,17 +161,61 @@ export async function sendPledgeNotification(pledge, pdfBuffer) {
     ];
   }
 
-  const response = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sender)}/sendMail`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token.token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ message, saveToSentItems: true }),
-  });
+  await sendMail(message);
+}
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Graph API error ${response.status}: ${text}`);
+export async function sendParentConfirmation(pledge) {
+  const isDev = pledge.dev === true;
+  const devEmail = process.env.EMAIL_DEV;
+  const parentEmail = isDev
+    ? (devEmail || process.env.EMAIL_ADMIN || '')
+    : String(pledge.email || '').trim();
+  if (!parentEmail) {
+    throw new Error(isDev
+      ? 'No EMAIL_DEV or EMAIL_ADMIN configured to receive the test confirmation'
+      : 'No parent/guardian email address on the submission');
   }
+
+  const schoolCount = Number(pledge.schoolChildCount) || 0;
+  const kindergartenCount = Number(pledge.kindergartenChildCount) || 0;
+  const children = [
+    ...Array.from({ length: schoolCount }, (_, i) => pledge[`school${i + 1}Name`] || `School child ${i + 1}`),
+    ...Array.from({ length: kindergartenCount }, (_, i) => pledge[`kindergarten${i + 1}Name`] || `Kindergarten child ${i + 1}`),
+  ];
+  const childList = children.length
+    ? children.map((name) => `  - ${name}`).join('\n')
+    : '  - (no children listed)';
+
+  const content = [
+    `Kia ora ${pledge.parentName || 'whānau'},`,
+    '',
+    `Thank you. We have received your ${pledgeRules.year} Special Character Pledge Form for ${pledgeRules.schoolName}.`,
+    '',
+    'Children included on this pledge:',
+    childList,
+    '',
+    'This is an automated confirmation that your pledge was received. The school office will be in touch if anything needs clarification.',
+    '',
+    'Please keep this email for your records.',
+    '',
+    pledgeRules.schoolName,
+  ].join('\n');
+
+  await sendMail({
+    subject: `${isDev ? '[TEST] ' : ''}We have received your ${pledgeRules.year} pledge`,
+    body: {
+      contentType: 'Text',
+      content,
+    },
+    from: {
+      emailAddress: { address: sender },
+    },
+    toRecipients: [
+      {
+        emailAddress: {
+          address: parentEmail,
+        },
+      },
+    ],
+  });
 }

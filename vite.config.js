@@ -1,6 +1,9 @@
 import { defineConfig, loadEnv } from 'vite';
+import { readFileSync } from 'node:fs';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 function devConfigPlugin(env) {
   const config = {};
@@ -28,6 +31,7 @@ function devConfigPlugin(env) {
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
+    define: { __FORM_VERSION__: JSON.stringify(pkg.version) },
     plugins: [
       ...(command === 'serve' ? [basicSsl(), devConfigPlugin(env)] : []),
       ...(command === 'build' ? [viteSingleFile()] : []),

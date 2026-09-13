@@ -16,9 +16,13 @@ let submitted = false;
 const contactEmail = window.PLEDGE_CONFIG?.contactEmail;
 const trustAdministrator = trustAdministratorPhrase(contactEmail);
 const submitUrl = window.PLEDGE_CONFIG?.submitUrl;
+const formVersion = typeof __FORM_VERSION__ === 'string' ? __FORM_VERSION__ : '';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
 const FORM_LOAD_TIME = Date.now();
 const MIN_FILL_TIME_MS = 5000;
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const isDev = window.PLEDGE_CONFIG?.dev === true;
 const isDraft = window.PLEDGE_CONFIG?.draft === true;
 const successHTML = '<div class="success"><span class="success-mark">✓</span><p class="eyebrow">Pledge received</p><h2>Thank you, your pledge has been submitted.</h2><p>The school will be in touch if anything needs clarification.</p></div>';
@@ -234,7 +238,7 @@ function dynamicContributionRows() {
     const amountName = `${kind}${number}Amount`;
     const selected = userEditedAmounts.has(amountName) ? currentAmount : recommended;
     const childName = form.querySelector(`[name="${sourceName}"]`)?.value.trim() || `${kind === 'school' ? 'School' : 'Kindergarten / Nursery'} child ${number}`;
-    return `<div class="amount-row"><span class="linked-name" data-source="${sourceName}">${childName}</span><span class="recommended">Recommended: ${money(recommended)}</span><input name="${kind}${number}Amount" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="${selected}" aria-label="Agreed amount for ${kind} child ${number}" required /></div>`;
+    return `<div class="amount-row"><span class="linked-name" data-source="${sourceName}">${escapeHtml(childName)}</span><span class="recommended">Recommended: ${money(recommended)}</span><input name="${kind}${number}Amount" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="${escapeHtml(selected)}" aria-label="Agreed amount for ${kind} child ${number}" required /></div>`;
   }).join('');
   document.querySelector('#pledge-rows').innerHTML = `${rows('school', schoolCount)}${rows('kindergarten', kindergartenCount)}` || '<p class="muted">Add students above to see pledge amounts.</p>';
   document.querySelector('#disbursement-rows').innerHTML = Array.from({ length: schoolCount + kindergartenCount }, (_, index) => {
@@ -243,7 +247,7 @@ function dynamicContributionRows() {
     const recommended = scale(pledgeRules.disbursementPerChild);
     const current = userEditedAmounts.has(fieldName) ? form.querySelector(`[name="${fieldName}"]`)?.value : recommended;
     const childName = form.querySelector(`[name="${source}"]`)?.value.trim() || `Child ${index + 1}`;
-    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${childName}</span><span class="recommended">Recommended: ${money(recommended)}</span><input name="${fieldName}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="${current}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
+    return `<div class="amount-row"><span class="linked-name" data-source="${source}">${escapeHtml(childName)}</span><span class="recommended">Recommended: ${money(recommended)}</span><input name="${fieldName}" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="${escapeHtml(current)}" aria-label="Disbursement for child ${index + 1}" required /></div>`;
   }).join('') || '<p class="muted">Add students above to see disbursement amounts.</p>';
   syncLinkedNames();
 }
@@ -255,7 +259,7 @@ function dynamicMedicalInfoRows() {
     const sourceName = `${kind}${number}Name`;
     const fieldName = `${kind}${number}MedicalInfo`;
     const current = form.querySelector(`[name="${fieldName}"]`)?.value || '';
-    return `<div class="medical-info-row"><strong class="linked-name" data-source="${sourceName}">${kind === 'school' ? 'School' : 'Kindergarten / Nursery'} child ${number}</strong><textarea name="${fieldName}" rows="2" placeholder="${t(labels.medicalInfoPlaceholder)}">${current}</textarea></div>`;
+    return `<div class="medical-info-row"><strong class="linked-name" data-source="${sourceName}">${kind === 'school' ? 'School' : 'Kindergarten / Nursery'} child ${number}</strong><textarea name="${fieldName}" rows="2" placeholder="${t(labels.medicalInfoPlaceholder)}">${escapeHtml(current)}</textarea></div>`;
   }).join('');
   const container = document.querySelector('#medical-info-rows');
   if (!container) return;
@@ -329,7 +333,7 @@ function updateCustodySection() {
       const name = `${kind}${number}Name`;
       const label = document.querySelector(`[name="${name}"]`)?.value.trim() || t(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n: number });
       const checkboxName = `custody-${index}-${kind}${number}`;
-      return `<label class="check"><input type="checkbox" name="${checkboxName}" ${existing[checkboxName] ? 'checked' : ''} /> <span data-source="${name}">${label}</span></label>`;
+      return `<label class="check"><input type="checkbox" name="${checkboxName}" ${existing[checkboxName] ? 'checked' : ''} /> <span data-source="${name}">${escapeHtml(label)}</span></label>`;
     }).join('') || '<p class="muted">Add children in section 01 first.</p>';
     return `<div class="custody-arrangement">
       <h4>${t(labels.custodyArrangement, { n: index + 1 })}</h4>
@@ -373,7 +377,7 @@ function adminPanelHTML() {
         <h3>Mid-year start link</h3>
         <p class="muted">Generate a link for families joining partway through the year. Recommended amounts are pro-rated to the weeks remaining from this date.</p>
         <div class="admin-row">
-          <input type="date" id="admin-start-date" value="${startDateParam || ''}" aria-label="Start date" />
+          <input type="date" id="admin-start-date" value="${escapeHtml(startDateParam || '')}" aria-label="Start date" />
           <button type="button" id="admin-generate-link">Generate link</button>
         </div>
         <div class="admin-row">
@@ -478,7 +482,7 @@ function render() {
           <p class="callout" id="split-payment-note" hidden>${labels.splitPaymentNote}</p>
           <p class="muted">The contributions are donation-based. Recommended amounts are a guideline, not fees. Please contact ${trustAdministrator} if you need to discuss financial hardship.<br><br>As these are donations you may be able to claim back up to 33% of the amount as a donation tax credit from IRD.</p>
           <p class="muted" data-template="${encodeURIComponent(labels.pledgeOtherCostsNote)}">${t(labels.pledgeOtherCostsNote)}</p>
-          ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">${t(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}
+          ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${escapeHtml(startDateParam)}" /></label><span id="start-date-summary">${t(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${escapeHtml(invalidStartDateNote)}</p>` : ''}
           <h3 class="amounts-heading">${labels.pledgeAmounts}</h3>
           <p class="muted" data-template="${encodeURIComponent(labels.pledgeIntro)}">${t(labels.pledgeIntro)}</p>
           ${expandable(labels.pledgeInfoTitle, labels.pledgeInfoBody)}
@@ -582,6 +586,8 @@ function submissionPayload() {
     form: formData(),
     submittedAt: new Date().toISOString(),
     timeOnPageMs: Date.now() - FORM_LOAD_TIME,
+    formVersion,
+    dev: isDev || params.has('dev'),
     ...(currentStartDateValue ? { startDate: currentStartDateValue } : {}),
   };
 }
@@ -725,6 +731,12 @@ function formatErrorTime() {
 
 function describeSubmitError(error) {
   const message = String(error?.message || error || 'Unknown error');
+  if (/too long to submit/i.test(message)) {
+    return {
+      cause: 'This form is too long to send (over 2 MB). Please shorten the longer answers, or print the form and email it to the school office.',
+      detail: 'The submission was not sent because it exceeded the 2 MB limit.',
+    };
+  }
   if (error?.name === 'AbortError') {
     return {
       cause: 'The request timed out before the school’s server responded, so nothing was sent.',
@@ -848,17 +860,22 @@ async function submissionError(response) {
 
 async function sendPledge(form) {
   const payload = submissionPayload();
+  const body = JSON.stringify(payload);
   const honeypotFilled = Boolean(form.querySelector('[name="website"]')?.value.trim());
   const isSpam = honeypotFilled || (!new URLSearchParams(window.location.search).has('dev') && payload.timeOnPageMs < MIN_FILL_TIME_MS);
   const button = form.querySelector('.submit');
-  button.disabled = true;
-  button.textContent = 'Sending…';
   if (isSpam) {
     showSuccess(button);
     return;
   }
+  if (new TextEncoder().encode(body).length > MAX_BODY_BYTES) {
+    showSubmitError(new Error('This form is too long to submit (over 2 MB)'));
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Sending…';
   try {
-    const response = await fetchWithTimeout(submitUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }, 20000);
+    const response = await fetchWithTimeout(submitUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }, 20000);
     if (!response.ok) throw await submissionError(response);
     showSuccess(button);
   } catch (error) {

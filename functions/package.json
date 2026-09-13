@@ -1,12 +1,12 @@
 {
   "name": "te-ra-pledge-functions",
-  "version": "0.0.1",
+  "version": "0.3.0",
   "description": "Azure Functions backend for the Te Ra pledge form",
   "main": "src/functions/*.js",
   "type": "module",
   "scripts": {
     "start": "func start",
-    "sync:config": "node scripts/sync-config.js && node scripts/sync-form-definition.js && node scripts/sync-form-bundle.js",
+    "sync:config": "node scripts/sync-config.js",
     "prestart": "npm run sync:config",
     "test": "node scripts/pdf-smoke-test.js"
   },
@@ -19,6 +19,6 @@
     "puppeteer-core": "^25.5.0"
   },
   "devDependencies": {
-    "azure-functions-core-tools": "^4.0.6284"
+    "azure-functions-core-tools": "^4.14.0"
   }
 }

@@ -15,6 +15,7 @@ functions/out/
 functions/local.settings.json
 functions/src/pledgeConfig.js
 functions/src/formDefinition.js
+functions/src/formVersion.js
 functions/src/pledgeForm.html
 *.log
 *.tgz
@@ -24,6 +25,7 @@ infra/.terraform/
 infra/*.tfstate
 infra/*.tfstate.*
 infra/terraform.tfvars
+infra/backend.tfbackend
 infra/tfplan
 
 # Power Automate flow (contains the email recipient; never commit)

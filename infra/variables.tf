@@ -43,9 +43,27 @@ variable "email_sender" {
 }
 
 variable "email_admin" {
-  description = "School office address that receives every pledge email (parent is CC'd)"
+  description = "School office address that receives every pledge notification email"
   type        = string
   default     = ""
+}
+
+variable "email_dev" {
+  description = "Optional address that receives test (?dev) submissions instead of the school office; leave empty to fall back to email_admin"
+  type        = string
+  default     = ""
+}
+
+variable "allowed_origins" {
+  description = "Browser origins allowed to call the pledge API. Restrict to the exact site(s) embedding the form."
+  type        = list(string)
+  default     = ["https://www.tera.school.nz", "https://tera.school.nz", "https://localhost:5173"]
+}
+
+variable "retention_days" {
+  description = "How long pledge submissions and audit records are kept before deletion (privacy retention period)"
+  type        = number
+  default     = 730
 }
 
 variable "create_app_registration" {
