@@ -11,7 +11,10 @@ const STORAGE_KEY = `te-ra-pledge-form:${pledgeRules.year}`;
 
 const app = document.querySelector('#app');
 const userEditedAmounts = new Set();
+let submitted = false;
 const contactEmail = window.PLEDGE_CONFIG?.contactEmail;
+const submitUrl = window.PLEDGE_CONFIG?.submitUrl;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FORM_LOAD_TIME = Date.now();
 const MIN_FILL_TIME_MS = 5000;
 const isDev = window.PLEDGE_CONFIG?.dev === true;
@@ -165,8 +168,10 @@ function sectionHead(number) {
   return `<div class="section-heading"><h2>${sectionTitle(section, pledgeRules.year)}</h2></div>`;
 }
 
-function expandable(title, body) {
-  return `<details class="info-panel"><summary>${t(title)}</summary><div class="info-panel-body">${t(body)}</div></details>`;
+function expandable(title, body, options = {}) {
+  const id = options.id ? ` id="${options.id}"` : '';
+  const open = options.open ? ' open' : '';
+  return `<details class="info-panel"${id}${open}><summary>${t(title)}</summary><div class="info-panel-body">${t(body)}</div></details>`;
 }
 
 function checklist(key, required = false, links = {}) {
@@ -288,7 +293,7 @@ function updateEotcConsentLabels() {
     }
     fieldset.hidden = false;
     checkboxes.forEach((checkbox) => {
-      checkbox.required = true;
+      checkbox.required = false;
       checkbox.disabled = false;
     });
     if (namesSpan) namesSpan.textContent = list(names);
@@ -393,11 +398,12 @@ function render() {
         ${isDev ? '<button type="button" id="dev-fill" class="dev-fill">Load test data</button>' : ''}
       </header>
 
+      <div id="submit-success" hidden tabindex="-1">${successHTML}<div class="success-actions"><button type="button" class="print-button" data-print>Print this form (keep for your own records)</button></div></div>
       ${isAdmin ? adminPanelHTML() : ''}
       <form id="pledge-form">
         <section class="card accent-card">
           ${sectionHead('01')}
-          <div class="grid two">${field(labels.parentName, 'parentName', 'text', { required: true })}${field(labels.email, 'email', 'email', { required: true })}</div>
+          <div class="grid two">${field(labels.parentName, 'parentName', 'text', { required: true })}          ${field(labels.email, 'email', 'email', { required: true, tooltip: labels.emailTooltip })}</div>
           <fieldset class="family-type"><legend>${labels.familyTypeLegend}</legend>
             <label class="check"><input type="radio" name="familyType" value="together" required /> <span>${labels.familyTogether}</span></label>
             <label class="check"><input type="radio" name="familyType" value="split" required /> <span>${labels.familySplit}</span></label>
@@ -419,7 +425,7 @@ function render() {
 
         <section class="card">${sectionHead('04')}
           <p class="muted">${labels.medicalIntro}</p>
-          ${checklist('medical', true)}
+          ${checklist('medical')}
         </section>
 
         <section class="card">${sectionHead('05')}
@@ -452,6 +458,7 @@ function render() {
         <section class="card">${sectionHead('08')}
           <p class="muted" data-template="${encodeURIComponent(labels.photosIntro)}">${t(labels.photosIntro)}</p>
           ${checklist('photos')}
+          <p class="muted" data-template="${encodeURIComponent(labels.photosWithdrawNote)}">${t(labels.photosWithdrawNote)}</p>
         </section>
 
         <section class="card">${sectionHead('09')}
@@ -489,11 +496,21 @@ function render() {
           ${field(labels.anythingElse, 'anythingElseComments', 'textarea')}
           <label class="honeypot" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
           <div class="grid two">${field(labels.signature, 'signature', 'text', { required: true })}${field(labels.signatureDate, 'signatureDate', 'date', { required: true })}</div>
-          <button class="submit" type="submit">Submit pledge <span>↗</span></button>
+          ${expandable(labels.privacyStatementTitle, labels.privacyStatementBody, { id: 'privacy-statement' })}
+          <p class="muted">${t(labels.privacyNotice)}</p>
+          ${submitUrl ? '' : `<div class="submit-error" role="alert"><h3>This form is not connected</h3><p>The submission service has not been configured, so this form can’t be submitted from this page. Please print this form and email it to the school office${contactEmail ? ` at <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}.</p></div>`}
+          <div id="submit-error" class="submit-error" hidden role="alert">
+            <h3>We couldn’t submit your pledge</h3>
+            <p id="submit-error-cause"></p>
+            <p>Your answers are still on this page. Please try again, and if it still doesn’t work, print this form and email it to the school office${contactEmail ? ` at <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}.</p>
+            <p class="fine-print" id="submit-error-detail"></p>
+          </div>
+          <button class="submit" type="submit"${submitUrl ? '' : ' disabled'}>Submit pledge <span>↗</span></button>
+          <button type="button" class="print-button" data-print>Print this form</button>
           <p class="fine-print">Submissions are sent securely to the school’s configured service.</p>
         </section>
       </form>
-      <footer>${pledgeRules.returnBy && !validStartDate ? `<p class="return-by reminder">${t(labels.returnByBottom, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}</footer>
+      <footer>${pledgeRules.returnBy && !validStartDate ? `<p class="return-by reminder">${t(labels.returnByBottom, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}<p><a href="#privacy-statement">Privacy statement</a></p></footer>
     </div>`;
 }
 
@@ -698,9 +715,172 @@ function showSubmissionPopup(payload, onSend) {
   document.body.appendChild(overlay);
 }
 
+function formatErrorTime() {
+  return new Date().toLocaleString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function describeSubmitError(error) {
+  const message = String(error?.message || error || 'Unknown error');
+  if (error?.name === 'AbortError') {
+    return {
+      cause: 'The request timed out before the school’s server responded, so nothing was sent.',
+      detail: `No response received. Technical detail: ${message}.`,
+    };
+  }
+  const status = Number(error?.status) || Number(message.match(/Submission failed \((\d{3})\)/)?.[1]);
+  if (Number.isFinite(status)) {
+    const details = Array.isArray(error?.serverDetails) ? error.serverDetails.filter(Boolean) : [];
+    if (status === 400 && details.length) {
+      return {
+        cause: `The school’s server rejected the form: ${details.join('; ')}`,
+        detail: `${error?.serverError ? `${error.serverError}. ` : ''}Server response: ${message}.`,
+      };
+    }
+    const byStatus = {
+      400: 'The school’s server rejected the form. Something may be missing or invalid.',
+      404: 'The school’s submission address could not be found. It may have changed.',
+      413: 'The form was too large for the school’s server to accept.',
+      429: 'Too many submissions were sent in a short time. Please wait a moment and try again.',
+      500: 'The school’s server had an internal error and could not accept the form.',
+      502: 'The school’s server could not complete the submission (a service it relies on may be unavailable).',
+      503: 'The school’s server is temporarily unavailable.',
+      504: 'The school’s server took too long to respond.',
+    };
+    return {
+      cause: byStatus[status] || `The school’s server returned an unexpected response (HTTP ${status}).`,
+      detail: `${error?.serverError ? `${error.serverError}. ` : ''}Server response: ${message}.`,
+    };
+  }
+  if (/failed to fetch|networkerror|load failed|network request failed|fetch failed/i.test(message)) {
+    return {
+      cause: 'We couldn’t reach the school’s server. You may be offline, or the connection was interrupted.',
+      detail: 'No data was sent. This is usually a temporary connection problem.',
+    };
+  }
+  return {
+    cause: 'Something went wrong while sending your form to the school.',
+    detail: `Technical detail: ${message}.`,
+  };
+}
+
+function showSubmitError(error) {
+  const { cause, detail } = describeSubmitError(error);
+  const causeElement = document.querySelector('#submit-error-cause');
+  const detailElement = document.querySelector('#submit-error-detail');
+  if (causeElement) causeElement.textContent = cause;
+  if (detailElement) detailElement.textContent = `${detail} Attempted at ${formatErrorTime()}.`;
+  const panel = document.querySelector('#submit-error');
+  if (panel) {
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  const status = document.querySelector('#save-status');
+  if (status) status.textContent = 'Submission failed — please print and contact the office';
+}
+
+function showSuccess(button) {
+  submitted = true;
+  localStorage.removeItem(STORAGE_KEY);
+  const errorPanel = document.querySelector('#submit-error');
+  if (errorPanel) errorPanel.hidden = true;
+  const success = document.querySelector('#submit-success');
+  if (success) {
+    success.hidden = false;
+    success.scrollIntoView({ block: 'start' });
+    try { success.focus({ preventScroll: true }); } catch { /* focus is best-effort */ }
+  }
+  document.querySelectorAll('#pledge-form [data-print]').forEach((element) => { element.hidden = true; });
+  const status = document.querySelector('#save-status');
+  if (status) status.textContent = 'Submitted successfully';
+  if (button) button.remove();
+}
+
+function printForm() {
+  const root = document.querySelector('#app') || document.body;
+  const hidden = [];
+  const openDetails = [...document.querySelectorAll('details[open]')];
+  openDetails.forEach((details) => details.removeAttribute('open'));
+  let node = root;
+  while (node && node.parentElement && node !== document.body) {
+    for (const sibling of node.parentElement.children) {
+      if (sibling !== node && !sibling.contains(root)) {
+        sibling.classList.add('pledge-print-hidden');
+        hidden.push(sibling);
+      }
+    }
+    node = node.parentElement;
+  }
+  const restore = () => {
+    hidden.forEach((element) => element.classList.remove('pledge-print-hidden'));
+    openDetails.forEach((details) => details.setAttribute('open', ''));
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+  window.print();
+  setTimeout(restore, 1000);
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function submissionError(response) {
+  let body = null;
+  try { body = await response.json(); } catch { /* Response body was not JSON. */ }
+  const error = new Error(`Submission failed (${response.status})`);
+  error.status = response.status;
+  if (body && typeof body === 'object') {
+    if (typeof body.error === 'string') error.serverError = body.error;
+    if (Array.isArray(body.details)) error.serverDetails = body.details.map(String);
+  }
+  return error;
+}
+
+async function sendPledge(form) {
+  const payload = submissionPayload();
+  const honeypotFilled = Boolean(form.querySelector('[name="website"]')?.value.trim());
+  const isSpam = honeypotFilled || (!new URLSearchParams(window.location.search).has('dev') && payload.timeOnPageMs < MIN_FILL_TIME_MS);
+  const button = form.querySelector('.submit');
+  button.disabled = true;
+  button.textContent = 'Sending…';
+  if (isSpam) {
+    showSuccess(button);
+    return;
+  }
+  try {
+    const response = await fetchWithTimeout(submitUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }, 20000);
+    if (!response.ok) throw await submissionError(response);
+    showSuccess(button);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'Submit pledge ↗';
+    showSubmitError(error);
+  }
+}
+
+function fieldDescription(element) {
+  if (!element) return 'the highlighted field';
+  const label = element.closest('label');
+  const text = label?.querySelector('.field-label')?.textContent?.trim()
+    || label?.textContent?.trim().slice(0, 60)
+    || element.getAttribute('aria-label')
+    || element.getAttribute('name')
+    || 'a required field';
+  return text.replace(/\s*\*$/, '').replace(/\s+/g, ' ');
+}
+
 async function submit(event) {
   event.preventDefault();
+  if (submitted || !submitUrl) return;
+  try {
   const form = event.currentTarget;
+    if (!form) return;
   if (childCount() === 0) {
     const status = document.querySelector('#save-status');
     if (status) {
@@ -710,40 +890,32 @@ async function submit(event) {
     document.querySelector('[name="schoolChildCount"]')?.focus();
     return;
   }
-  if (!form.reportValidity()) return;
+    const emailInput = form.querySelector('[name="email"]');
+    if (emailInput) emailInput.setCustomValidity(EMAIL_PATTERN.test(emailInput.value.trim()) ? '' : 'Please enter a valid email address');
+    if (!form.reportValidity()) {
+      const firstInvalid = form.querySelector('input:invalid, select:invalid, textarea:invalid');
+      const status = document.querySelector('#save-status');
+      if (firstInvalid) {
+        const label = fieldDescription(firstInvalid);
+        if (status) status.textContent = firstInvalid.validity.valueMissing ? `Please complete: ${label}` : (firstInvalid.validationMessage || `Please check: ${label}`);
+        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (status) {
+        status.textContent = 'Please complete the highlighted fields before submitting';
+      }
+      return;
+    }
   if (isDev && !devPayloadConfirmed) {
     devPayloadConfirmed = true;
     showSubmissionPopup(submissionPayload(), () => {
       devPayloadConfirmed = false;
-      submit(event);
+        sendPledge(form);
     });
     return;
   }
   devPayloadConfirmed = false;
-  const payload = submissionPayload();
-  const honeypotFilled = Boolean(form.querySelector('[name="website"]')?.value.trim());
-  const isSpam = honeypotFilled || (!new URLSearchParams(window.location.search).has('dev') && payload.timeOnPageMs < MIN_FILL_TIME_MS);
-  const endpoint = new URLSearchParams(window.location.search).get('endpoint') || window.PLEDGE_CONFIG?.submitUrl;
-  const button = form.querySelector('.submit');
-  button.disabled = true;
-  button.textContent = 'Sending…';
-  if (isSpam) {
-    localStorage.removeItem(STORAGE_KEY);
-    form.innerHTML = successHTML;
-    document.querySelector('#save-status').textContent = 'Submitted successfully';
-    return;
-  }
-  try {
-    if (!endpoint) throw new Error('No submission endpoint configured');
-    const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!response.ok) throw new Error(`Submission failed (${response.status})`);
-    localStorage.removeItem(STORAGE_KEY);
-    form.innerHTML = successHTML;
-    document.querySelector('#save-status').textContent = 'Submitted successfully';
+    await sendPledge(form);
   } catch (error) {
-    button.disabled = false;
-    button.textContent = 'Submit pledge ↗';
-    document.querySelector('#save-status').textContent = error.message;
+    showSubmitError(error);
   }
 }
 
@@ -753,6 +925,7 @@ document.querySelector('meta[name="description"]')?.setAttribute('content', `Spe
 const form = document.querySelector('#pledge-form');
 restoreDraft();
 form.addEventListener('input', (event) => {
+  if (event.target.name === 'email') event.target.setCustomValidity('');
   if (event.target.name?.endsWith('Amount') || event.target.name?.endsWith('Disbursement')) {
     userEditedAmounts.add(event.target.name);
   }
