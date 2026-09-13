@@ -132,6 +132,7 @@ export async function sendPledgeNotification(pledge, pdfBuffer) {
     throw new Error('EMAIL_ADMIN is not configured (set EMAIL_DEV to route test submissions separately)');
   }
 
+  const replyTo = String(pledge.email || '').trim();
   const message = {
     subject: `${isDev ? '[TEST] ' : ''}New pledge submission from ${pledge.parentName}`,
     body: {
@@ -148,6 +149,8 @@ export async function sendPledgeNotification(pledge, pdfBuffer) {
         },
       },
     ],
+    // Replies from the office go straight back to the parent / guardian.
+    ...(replyTo ? { replyTo: [{ emailAddress: { address: replyTo } }] } : {}),
   };
 
   if (pdfBuffer) {
