@@ -197,10 +197,11 @@ function dynamicChildren() {
   const rows = (kind, count) => Array.from({ length: count }, (_, index) => {
     const n = index + 1;
     const title = t(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n });
-    const classOptions = Array.from({ length: 7 }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
-    const ageOptions = Array.from({ length: 5 }, (_, i) => ({ value: i + 2, label: String(i + 2) }));
+    const classOptions = [{ value: '', label: '' }, ...Array.from({ length: 7 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))];
+    const ageOptions = [{ value: '', label: '' }, ...Array.from({ length: 5 }, (_, i) => ({ value: i + 2, label: String(i + 2) }))];
     const daysOptions = [
-      { value: 5, label: '5 days', selected: true },
+      { value: '', label: '' },
+      { value: 5, label: '5 days' },
       { value: 3, label: '3 days' },
       { value: 2, label: '2 days' },
     ];
@@ -390,6 +391,13 @@ function adminPanelHTML() {
         <p class="muted">Load a saved submission JSON file to repopulate the form for reprinting or processing. Accepts either a submission payload or a flat form object.</p>
         <input type="file" id="admin-json-file" accept="application/json,.json" aria-label="Load pledge data JSON file" />
         <p class="admin-output" id="admin-load-output" role="status" aria-live="polite"></p>
+      </div>
+      <div class="admin-tool">
+        <h3>Blank hand-fill form</h3>
+        <p class="muted">Print a blank form with 3 school children and 2 Kindergarten / Nursery children, ready to be completed by hand. This clears the answers currently in the form.</p>
+        <div class="admin-row">
+          <button type="button" id="admin-print-blank">Print blank form (3 school, 2 kindergarten)</button>
+        </div>
       </div>
     </section>`;
 }
@@ -829,11 +837,56 @@ function printForm() {
   const restore = () => {
     hidden.forEach((element) => element.classList.remove('pledge-print-hidden'));
     openDetails.forEach((details) => details.setAttribute('open', ''));
-    window.removeEventListener('afterprint', restore);
   };
-  window.addEventListener('afterprint', restore);
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    restore();
+    window.removeEventListener('afterprint', finish);
+  };
+  window.addEventListener('afterprint', finish);
   window.print();
-  setTimeout(restore, 1000);
+  setTimeout(finish, 2000);
+}
+
+function clearFormValues() {
+  document.querySelectorAll('#pledge-form input, #pledge-form select, #pledge-form textarea').forEach((element) => {
+    if (element.type === 'checkbox' || element.type === 'radio') element.checked = false;
+    else if (element.tagName === 'SELECT') element.selectedIndex = 0;
+    else element.value = '';
+  });
+}
+
+function printBlankForm() {
+  const form = document.querySelector('#pledge-form');
+  if (!form) return;
+  clearFormValues();
+  form.querySelector('[name="schoolChildCount"]').value = '3';
+  form.querySelector('[name="kindergartenChildCount"]').value = '2';
+  dynamicChildren();
+  // Blank the class / age / days-per-week dropdowns for hand-filling.
+  form.querySelectorAll('#school-children select, #kindergarten-children select').forEach((select) => { select.selectedIndex = -1; });
+  // Keep the Recommended column but leave the agreed amounts blank.
+  form.querySelectorAll('input[name$="Amount"], input[name$="Disbursement"], [name="supplementaryDonation"]').forEach((element) => { element.value = ''; });
+  // The split-parent section only belongs to the digital form.
+  [
+    form.querySelector('.family-type'),
+    form.querySelector('[name="otherParentName"]')?.closest('label'),
+    document.querySelector('#split-payment-note'),
+  ].filter(Boolean).forEach((element) => { element.hidden = true; });
+  // Show one custodial arrangement for hand-filling, but print the toggle unticked.
+  const custodyToggle = form.querySelector('[name="custodyApplies"]');
+  const custodyCount = form.querySelector('[name="custodyArrangementCount"]');
+  if (custodyToggle) custodyToggle.checked = true;
+  if (custodyCount) custodyCount.value = '1';
+  updateCustodySection();
+  if (custodyToggle) custodyToggle.checked = false;
+  ['#year-total', '#term-total', '#week-total'].forEach((selector) => {
+    const element = document.querySelector(selector);
+    if (element) element.textContent = '';
+  });
+  printForm();
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
@@ -1047,6 +1100,7 @@ document.querySelector('#admin-json-file')?.addEventListener('change', async (ev
     output.textContent = `Could not load file: ${error.message}`;
   }
 });
+document.querySelector('#admin-print-blank')?.addEventListener('click', printBlankForm);
 
 function loadDevAnswers() {
   const form = document.querySelector('#pledge-form');
