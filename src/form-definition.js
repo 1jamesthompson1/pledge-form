@@ -9,7 +9,9 @@
 //   {year}, {schoolName}, {child} (child/children by total count),
 //   {theirFace} (their face is / their faces are by total count),
 //   {schoolChild}, {kindergartenChild} (per-group counts), {n}, {date},
-//   {termStart}, {weeks}, {totalWeeks}
+//   {termStart}, {weeks}, {totalWeeks}, {trustAdminContact}
+// Long-form copy (the privacy statement) lives in src/privacy-statement.html
+// and is imported with ?raw by src/main.js.
 // Unfinished copy is marked with the consistent "PLACEHOLDER: ..." prefix.
 
 export const interpolate = (template, vars = {}) =>
@@ -18,6 +20,10 @@ export const interpolate = (template, vars = {}) =>
 export const childWord = (count) => (count === 1 ? 'child' : 'children');
 
 export const theirFacePhrase = (count) => (count === 1 ? 'their face is' : 'their faces are');
+
+export const trustAdministratorPhrase = (email) => (email
+  ? `the Pledge form Administrator at <a href="mailto:${email}">${email}</a>`
+  : 'the Pledge form Administrator');
 
 export const formatLongDate = (isoDate) => {
   if (!isoDate) return '';
@@ -144,6 +150,7 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   familyTogether: 'Both parents / guardians are together and are filling out this form together.',
   familySplit: 'Single parent, or parents / guardians are split, and each parent will fill out the form individually.',
   email: 'Email address',
+  emailTooltip: 'This should be the email address that is linked to Kindo. If you want to update it, please add your new email address and you should receive an email to the new account with pledge information.',
   count: 'Count',
   startDate: 'Start date',
   startDateSummary: 'Recommended amounts cover {weeks} of {totalWeeks} teaching weeks of the {year} school year.',
@@ -168,12 +175,12 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   perTerm: 'Per term',
   perWeek: 'Per week (school year)',
   paymentPlan: 'Indicative payment plan',
-  kindoInfoTitle: 'Setting up Kindo',
-  kindoInfoBody: 'PLACEHOLDER: Add information about setting up Kindo here.',
+  kindoInfoTitle: 'Kindo account setup and payment information',
+  kindoPaymentsNote: 'We use <strong>Kindo</strong> to make payments. See below for more information.',
+  kindoInfoBody: "To set up your account, download the Kindo app or sign up online <a href='https://shop.kindo.co.nz/app/login' target='_blank' rel='noopener'>here</a>.<br><br>Please use the <strong>same email address you provided to the school</strong> so that your {child} can be automatically linked to your account.<br><br>You can also set up automatic payments to keep your Kindo account topped up. See more information <a href='https://support.mykindo.co.nz/portal/en/kb/articles/how-to-set-up-an-automatic-payment' target='_blank' rel='noopener'>here</a>.<br><br><strong>Kindo Bank Account:</strong><br>The Growth Collective Limited<br><strong>02-1257-0090149-000</strong><br>The reference for your payment will be your customer number. See links above.",
   paymentPlanNote: 'Our expenses are regular throughout the year, and it is best for the school and kindergarten cash flow if you pay by regular instalments starting in January. Some families prefer to pay a lump sum at the start of the year.',
   paymentHeading: 'Payment of pledges',
   pledgeComments: 'Pledge comments',
-  pledgeCommentsNote: "Payments are made through Kindo. If you don't have an account see below for how to set one up. THIS IS TO BE COMPLETED...",
   emergencyContact: 'Contact {n}',
   emergencyName: 'Name',
   emergencyPhone: 'Phone number',
@@ -189,6 +196,9 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   custodyExplanation: 'Further details about the custodial arrangement',
   custodyAddAnother: 'Add another custodial arrangement',
   custodyRemove: 'Remove arrangement',
+  privacyStatementTitle: 'Privacy statement',
+  photosWithdrawNote: 'You can change or withdraw your photo consent at any time by contacting the school office.',
+  privacyNotice: 'We handle your information as described in our privacy statement. By submitting this form you confirm you have read it.',
   anythingElse: 'Anything else to add?',
   signature: 'Parent / guardian signature (typed)',
   signatureDate: 'Date',

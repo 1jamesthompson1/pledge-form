@@ -3,9 +3,10 @@ import { money, pledgeRules } from './pledge-config.js';
 import {
   interpolate, formatLongDate, formatLongDateOrdinal, sections, sectionTitle, consentGroups,
   eotcStatementsSchool, eotcStatementsKindergarten, eotcLegends, labels, childWord,
-  theirFacePhrase,
+  theirFacePhrase, trustAdministratorPhrase,
 } from './form-definition.js';
 import examplePledge from './example-data.json';
+import privacyStatementHtml from './privacy-statement.html?raw';
 
 const STORAGE_KEY = `te-ra-pledge-form:${pledgeRules.year}`;
 
@@ -13,6 +14,7 @@ const app = document.querySelector('#app');
 const userEditedAmounts = new Set();
 let submitted = false;
 const contactEmail = window.PLEDGE_CONFIG?.contactEmail;
+const trustAdministrator = trustAdministratorPhrase(contactEmail);
 const submitUrl = window.PLEDGE_CONFIG?.submitUrl;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FORM_LOAD_TIME = Date.now();
@@ -111,6 +113,7 @@ const t = (template, vars = {}) => interpolate(template, {
   schoolName: pledgeRules.schoolName,
   child: childWord(childCount()),
   theirFace: theirFacePhrase(childCount()),
+  trustAdminContact: trustAdministrator,
   schoolChild: childWord(schoolChildCount()),
   kindergartenChild: childWord(kindergartenChildCount()),
   ...vars,
@@ -171,7 +174,8 @@ function sectionHead(number) {
 function expandable(title, body, options = {}) {
   const id = options.id ? ` id="${options.id}"` : '';
   const open = options.open ? ' open' : '';
-  return `<details class="info-panel"${id}${open}><summary>${t(title)}</summary><div class="info-panel-body">${t(body)}</div></details>`;
+  const template = encodeURIComponent(body);
+  return `<details class="info-panel"${id}${open}><summary>${t(title)}</summary><div class="info-panel-body" data-template="${template}">${t(body)}</div></details>`;
 }
 
 function checklist(key, required = false, links = {}) {
@@ -472,7 +476,7 @@ function render() {
 
         <section class="card">${sectionHead('10')}
           <p class="callout" id="split-payment-note" hidden>${labels.splitPaymentNote}</p>
-          <p class="muted">The contributions are donation-based. Recommended amounts are a guideline, not fees. Please contact the Trust Administrator if you need to discuss financial hardship.<br><br>As these are donations you may be able to claim back up to 33% of the amount as a donation tax credit from IRD.</p>
+          <p class="muted">The contributions are donation-based. Recommended amounts are a guideline, not fees. Please contact ${trustAdministrator} if you need to discuss financial hardship.<br><br>As these are donations you may be able to claim back up to 33% of the amount as a donation tax credit from IRD.</p>
           <p class="muted" data-template="${encodeURIComponent(labels.pledgeOtherCostsNote)}">${t(labels.pledgeOtherCostsNote)}</p>
           ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${startDateParam}" /></label><span id="start-date-summary">${t(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${invalidStartDateNote}</p>` : ''}
           <h3 class="amounts-heading">${labels.pledgeAmounts}</h3>
@@ -487,7 +491,7 @@ function render() {
            <input type="hidden" name="totalPledge" /><div class="price-summary total-summary" aria-live="polite"><div class="total-summary-title">${t(labels.totalPledgeHeading)}</div><div><span>${t(labels.perYear)}</span><strong id="year-total">$0.00</strong></div><div><span>${t(labels.perTerm)}</span><strong id="term-total">$0.00</strong><small id="term-total-note">Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>${t(labels.perWeek)}</span><strong id="week-total">$0.00</strong><small id="week-total-note">Total divided by ${pledgeRules.schoolYearWeeks} weeks of the school year</small></div></div>
 <fieldset><legend>${labels.paymentPlan}</legend><p class="muted" data-template="${encodeURIComponent(labels.paymentPlanNote)}">${t(labels.paymentPlanNote)}</p>${paymentPlanOptions.map((option) => `<label class="check"><input type="radio" name="paymentPlan" value="${option.label}" required /> <span>${option.label} <em class="plan-price" data-plan="${option.key}"></em></span></label>`).join('')}</fieldset>
            ${field(labels.pledgeComments, 'pledgeComments', 'textarea')}
-           <p class="fine-print" data-template="${encodeURIComponent(labels.pledgeCommentsNote)}">${t(labels.pledgeCommentsNote)}</p>
+           <p class="muted" data-template="${encodeURIComponent(labels.kindoPaymentsNote)}">${t(labels.kindoPaymentsNote)}</p>
            ${expandable(labels.kindoInfoTitle, labels.kindoInfoBody)}
         </section>
 
@@ -496,7 +500,7 @@ function render() {
           ${field(labels.anythingElse, 'anythingElseComments', 'textarea')}
           <label class="honeypot" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
           <div class="grid two">${field(labels.signature, 'signature', 'text', { required: true })}${field(labels.signatureDate, 'signatureDate', 'date', { required: true })}</div>
-          ${expandable(labels.privacyStatementTitle, labels.privacyStatementBody, { id: 'privacy-statement' })}
+          ${expandable(labels.privacyStatementTitle, privacyStatementHtml, { id: 'privacy-statement' })}
           <p class="muted">${t(labels.privacyNotice)}</p>
           ${submitUrl ? '' : `<div class="submit-error" role="alert"><h3>This form is not connected</h3><p>The submission service has not been configured, so this form can’t be submitted from this page. Please print this form and email it to the school office${contactEmail ? ` at <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}.</p></div>`}
           <div id="submit-error" class="submit-error" hidden role="alert">
@@ -879,17 +883,17 @@ async function submit(event) {
   event.preventDefault();
   if (submitted || !submitUrl) return;
   try {
-  const form = event.currentTarget;
+    const form = event.currentTarget;
     if (!form) return;
-  if (childCount() === 0) {
-    const status = document.querySelector('#save-status');
-    if (status) {
-      status.textContent = 'Please add at least one child (school or kindergarten) before submitting';
-      status.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (childCount() === 0) {
+      const status = document.querySelector('#save-status');
+      if (status) {
+        status.textContent = 'Please add at least one child (school or kindergarten) before submitting';
+        status.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      document.querySelector('[name="schoolChildCount"]')?.focus();
+      return;
     }
-    document.querySelector('[name="schoolChildCount"]')?.focus();
-    return;
-  }
     const emailInput = form.querySelector('[name="email"]');
     if (emailInput) emailInput.setCustomValidity(EMAIL_PATTERN.test(emailInput.value.trim()) ? '' : 'Please enter a valid email address');
     if (!form.reportValidity()) {
@@ -904,15 +908,15 @@ async function submit(event) {
       }
       return;
     }
-  if (isDev && !devPayloadConfirmed) {
-    devPayloadConfirmed = true;
-    showSubmissionPopup(submissionPayload(), () => {
-      devPayloadConfirmed = false;
+    if (isDev && !devPayloadConfirmed) {
+      devPayloadConfirmed = true;
+      showSubmissionPopup(submissionPayload(), () => {
+        devPayloadConfirmed = false;
         sendPledge(form);
-    });
-    return;
-  }
-  devPayloadConfirmed = false;
+      });
+      return;
+    }
+    devPayloadConfirmed = false;
     await sendPledge(form);
   } catch (error) {
     showSubmitError(error);
@@ -981,6 +985,22 @@ document.querySelector('#dev-fill')?.addEventListener('click', () => {
 document.querySelector('#custody-arrangements')?.addEventListener('click', (event) => {
   if (event.target.classList.contains('remove-custody-arrangement')) {
     removeCustodyArrangement(Number(event.target.dataset.index));
+  }
+});
+
+document.addEventListener('click', (event) => {
+  if (event.target.closest('[data-print]')) {
+    event.preventDefault();
+    printForm();
+    return;
+  }
+  if (event.target.closest('a[href="#privacy-statement"]')) {
+    event.preventDefault();
+    const statement = document.querySelector('#privacy-statement');
+    if (statement) {
+      statement.setAttribute('open', '');
+      statement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 });
 
