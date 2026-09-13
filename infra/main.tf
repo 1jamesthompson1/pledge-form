@@ -20,6 +20,22 @@ resource "azurerm_storage_account" "functions" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
   min_tls_version          = "TLS1_2"
+
+  # Recover accidentally or maliciously deleted pledge data. Soft-deleted
+  # blobs/containers are recoverable for soft_delete_days; versioning keeps
+  # prior copies. The management policy below purges versions after the
+  # retention period so they do not outlive it.
+  blob_properties {
+    versioning_enabled = true
+
+    delete_retention_policy {
+      days = var.soft_delete_days
+    }
+
+    container_delete_retention_policy {
+      days = var.soft_delete_days
+    }
+  }
 }
 
 resource "azurerm_storage_container" "pledge_submissions" {
@@ -46,6 +62,9 @@ resource "azurerm_storage_management_policy" "retention" {
     actions {
       base_blob {
         delete_after_days_since_modification_greater_than = var.retention_days
+      }
+      version {
+        delete_after_days_since_creation = var.retention_days
       }
     }
   }

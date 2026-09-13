@@ -66,6 +66,12 @@ variable "retention_days" {
   default     = 730
 }
 
+variable "soft_delete_days" {
+  description = "Recovery window for accidentally or maliciously deleted pledge blobs and containers, in days"
+  type        = number
+  default     = 30
+}
+
 variable "create_app_registration" {
   description = "Create a Microsoft Entra app registration for Graph email sending"
   type        = bool

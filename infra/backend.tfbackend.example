@@ -4,8 +4,8 @@
 # No secret is stored here: the backend authenticates with `tofu`/your Azure CLI
 # login (use_azuread_auth), not a storage account key.
 
-resource_group_name  = "rg-te-ra-pledge-tfstate"
-storage_account_name = "terapleadgetfstate0000"
+resource_group_name  = "rg-example-tfstate"
+storage_account_name = "examplestateacct0000"
 container_name       = "tfstate"
 key                  = "prod.terraform.tfstate"
 use_azuread_auth     = true

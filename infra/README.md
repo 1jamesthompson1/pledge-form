@@ -21,8 +21,8 @@ Create the state account **once** (per environment). Pick a globally unique stor
 
 ```sh
 LOCATION="australiaeast"
-RG="rg-te-ra-pledge-tfstate"
-ST="terapleadgetfstate0000"   # <-- change to a globally unique name
+RG="rg-example-tfstate"
+ST="examplestateacct0000"   # <-- change to a globally unique name
 
 az group create -n "$RG" -l "$LOC"
 az storage account create -n "$ST" -g "$RG" -l "$LOC" \

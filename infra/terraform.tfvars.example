@@ -1,4 +1,4 @@
-resource_group_name = "rg-te-ra-pledge-prod"
+resource_group_name = "rg-example-pledge-prod"
 location            = "Australia East"
 location_code       = "australiaeast"
 app_name            = "te-ra-pledge"

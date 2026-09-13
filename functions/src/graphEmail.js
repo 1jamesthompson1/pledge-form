@@ -201,7 +201,7 @@ export async function sendParentConfirmation(pledge) {
     pledgeRules.schoolName,
   ].join('\n');
 
-  await sendMail({
+  const message = {
     subject: `${isDev ? '[TEST] ' : ''}We have received your ${pledgeRules.year} pledge`,
     body: {
       contentType: 'Text',
@@ -217,5 +217,12 @@ export async function sendParentConfirmation(pledge) {
         },
       },
     ],
-  });
+  };
+
+  const replyToAddress = process.env.EMAIL_ADMIN;
+  if (replyToAddress) {
+    message.replyTo = [{ emailAddress: { address: replyToAddress } }];
+  }
+
+  await sendMail(message);
 }

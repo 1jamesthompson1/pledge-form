@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "release": "GITHUB_TOKEN=\"${GITHUB_TOKEN:-$(gh auth token)}\" semantic-release --no-ci"
+    "check:function": "node --env-file-if-exists=.env scripts/check-function-version.js",
+    "deploy:functions": "node --env-file-if-exists=.env scripts/deploy-functions.mjs",
+    "release": "npm run deploy:functions && npm run check:function && GITHUB_TOKEN=\"${GITHUB_TOKEN:-$(gh auth token)}\" semantic-release --no-ci"
   },
   "devDependencies": {
     "@semantic-release/git": "^10.0.1",
