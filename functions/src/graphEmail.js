@@ -196,8 +196,6 @@ export async function sendParentConfirmation(pledge) {
     '',
     'This is an automated confirmation that your pledge was received. The school office will be in touch if anything needs clarification.',
     '',
-    'Please keep this email for your records.',
-    '',
     pledgeRules.schoolName,
   ].join('\n');
 
