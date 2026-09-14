@@ -834,7 +834,7 @@ function showSuccess(button) {
   if (button) button.remove();
 }
 
-function printForm() {
+function printForm(onRestore) {
   const root = document.querySelector('#app') || document.body;
   const hidden = [];
   const openDetails = [...document.querySelectorAll('details[open]')];
@@ -852,6 +852,7 @@ function printForm() {
   const restore = () => {
     hidden.forEach((element) => element.classList.remove('pledge-print-hidden'));
     openDetails.forEach((details) => details.setAttribute('open', ''));
+    if (onRestore) onRestore();
   };
   let finished = false;
   const finish = () => {
@@ -885,8 +886,10 @@ function printBlankForm() {
   // Keep the Recommended column but leave the agreed amounts blank.
   form.querySelectorAll('input[name$="Amount"], input[name$="Disbursement"], [name="supplementaryDonation"]').forEach((element) => { element.value = ''; });
   // The split-parent section only belongs to the digital form.
+  const familyType = form.querySelector('.family-type');
+  const familyTypeWasHidden = familyType ? familyType.hidden : true;
   [
-    form.querySelector('.family-type'),
+    familyType,
     form.querySelector('[name="otherParentName"]')?.closest('label'),
     document.querySelector('#other-parent-signature'),
     document.querySelector('#split-payment-note'),
@@ -902,7 +905,10 @@ function printBlankForm() {
     const element = document.querySelector(selector);
     if (element) element.textContent = '';
   });
-  printForm();
+  printForm(() => {
+    if (familyType) familyType.hidden = familyTypeWasHidden;
+    updateSeparateFamilySection();
+  });
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
