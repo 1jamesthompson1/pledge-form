@@ -147,8 +147,8 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   parentName: 'Parent / guardian name',
   otherParentName: 'Other parent / guardian name',
   familyTypeLegend: 'Which best describes your family situation?',
-  familyTogether: 'Both parents / guardians are together and are filling out this form together.',
-  familySplit: 'Split families where both parents will fill out their own form or single parent filling out their own form.',
+  familyTogether: 'Both parents / guardians are pledging together.',
+  familySplit: 'Parents / guardians are pledging separately (e.g., separated families or single parent).',
   email: 'Email address',
   emailTooltip: 'This is the email address we will use to set up your Kindo account.',
   count: 'Count',
@@ -201,5 +201,6 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   privacyNotice: 'We handle your information as described in our privacy statement. By submitting this form you confirm you have read it.',
   anythingElse: 'Anything else to add?',
   signature: 'Parent / guardian signature (typed)',
+  otherParentSignature: 'Other parent / guardian signature (typed)',
   signatureDate: 'Date',
 };

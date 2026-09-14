@@ -366,6 +366,14 @@ function updateSeparateFamilySection() {
     other.required = together;
     if (!together) other.value = '';
   }
+  const otherSignature = document.querySelector('[name="otherParentSignature"]');
+  if (otherSignature) {
+    const wrapper = document.querySelector('#other-parent-signature');
+    if (wrapper) wrapper.hidden = !together;
+    otherSignature.disabled = !together;
+    otherSignature.required = together;
+    if (!together) otherSignature.value = '';
+  }
   const paymentNote = document.querySelector('#split-payment-note');
   if (paymentNote) paymentNote.hidden = !split;
 }
@@ -518,7 +526,7 @@ function render() {
           <p>I confirm that the information above is correct and that I will advise the school of changes.</p>
           ${field(labels.anythingElse, 'anythingElseComments', 'textarea')}
           <label class="honeypot" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
-          <div class="grid two">${field(labels.signature, 'signature', 'text', { required: true })}${field(labels.signatureDate, 'signatureDate', 'date', { required: true })}</div>
+          <div class="grid two">${field(labels.signature, 'signature', 'text', { required: true })}<div id="other-parent-signature" hidden>${field(labels.otherParentSignature, 'otherParentSignature', 'text', { required: true })}</div>${field(labels.signatureDate, 'signatureDate', 'date', { required: true })}</div>
           ${expandable(labels.privacyStatementTitle, privacyStatementHtml, { id: 'privacy-statement' })}
           <p class="muted">${t(labels.privacyNotice)}</p>
           ${submitUrl ? '' : `<div class="submit-error" role="alert"><h3>This form is not connected</h3><p>The submission service has not been configured, so this form can’t be submitted from this page. Please print this form and email it to the school office${contactEmail ? ` at <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}.</p></div>`}
@@ -880,6 +888,7 @@ function printBlankForm() {
   [
     form.querySelector('.family-type'),
     form.querySelector('[name="otherParentName"]')?.closest('label'),
+    document.querySelector('#other-parent-signature'),
     document.querySelector('#split-payment-note'),
   ].filter(Boolean).forEach((element) => { element.hidden = true; });
   // Show one custodial arrangement for hand-filling, but print the toggle unticked.
