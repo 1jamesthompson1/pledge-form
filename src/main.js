@@ -2,7 +2,7 @@ import './style.css';
 import { money, pledgeRules } from './pledge-config.js';
 import {
   interpolate, formatLongDate, formatLongDateOrdinal, sections, sectionTitle, consentGroups,
-  eotcStatementsSchool, eotcStatementsKindergarten, eotcLegends, labels, childWord,
+  eotcStatementsSchool, eotcStatementsKindergarten, eotcWalksKindergarten, eotcLegends, labels, childWord,
   theirFacePhrase, trustAdministratorPhrase,
 } from './form-definition.js';
 import examplePledge from './example-data.json';
@@ -112,6 +112,13 @@ function childCount() {
   return schoolChildCount() + kindergartenChildCount();
 }
 
+function familyPronoun() {
+  const value = document.querySelector('[name="familyType"]:checked')?.value;
+  if (value === 'together') return { pronoun: 'We', pronounLower: 'we', possessive: 'our', objectPronoun: 'us', beVerb: 'are' };
+  if (value === 'split') return { pronoun: 'I', pronounLower: 'I', possessive: 'my', objectPronoun: 'me', beVerb: 'am' };
+  return { pronoun: 'I/We', pronounLower: 'we', possessive: 'our', objectPronoun: 'us', beVerb: 'are' };
+}
+
 const t = (template, vars = {}) => interpolate(template, {
   year: pledgeRules.year,
   schoolName: pledgeRules.schoolName,
@@ -120,6 +127,7 @@ const t = (template, vars = {}) => interpolate(template, {
   trustAdminContact: trustAdministrator,
   schoolChild: childWord(schoolChildCount()),
   kindergartenChild: childWord(kindergartenChildCount()),
+  ...familyPronoun(),
   ...vars,
 });
 
@@ -376,6 +384,7 @@ function updateSeparateFamilySection() {
   }
   const paymentNote = document.querySelector('#split-payment-note');
   if (paymentNote) paymentNote.hidden = !split;
+  refreshTemplates();
 }
 
 function adminPanelHTML() {
@@ -455,7 +464,7 @@ function render() {
         </section>
 
         <section class="card">${sectionHead('04')}
-          <p class="muted">${labels.medicalIntro}</p>
+          <p class="muted" data-template="${encodeURIComponent(labels.medicalIntro)}">${t(labels.medicalIntro)}</p>
           ${checklist('medical')}
         </section>
 
@@ -475,13 +484,18 @@ function render() {
 
         <section class="card">${sectionHead('07')}
           <p class="muted" data-template="${encodeURIComponent(labels.eotcIntro)}">${t(labels.eotcIntro)}</p>
-          <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcWalksIntro)}">${t(labels.eotcWalksIntro)}</p>
-          <ul class="eotc-walks-list">${labels.eotcWalks.map((item) => `<li data-template="${encodeURIComponent(item)}">${t(item)}</li>`).join('')}</ul>
           <fieldset id="eotc-school-consent" hidden><legend>${t(eotcLegends.school)} <span class="consent-names"></span></legend>
+            <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcWalksIntro)}">${t(labels.eotcWalksIntro)}</p>
+            <ul class="eotc-walks-list">${labels.eotcWalks.map((item) => `<li data-template="${encodeURIComponent(item)}">${t(item)}</li>`).join('')}</ul>
             ${eotcStatementsSchool.map((text, index) => `<label class="check"><input type="checkbox" name="eotcSchool-${index}" /> <span data-template="${encodeURIComponent(text)}">${t(text)}</span></label>`).join('')}
           </fieldset>
           <fieldset id="eotc-kindergarten-consent" hidden><legend>${t(eotcLegends.kindergarten)} <span class="consent-names"></span></legend>
-            ${eotcStatementsKindergarten.map((text, index) => `<label class="check"><input type="checkbox" name="eotcKindergarten-${index}" /> <span data-template="${encodeURIComponent(text)}">${t(text)}</span></label>`).join('')}
+            <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcKindergartenIntro)}">${t(labels.eotcKindergartenIntro)}</p>
+            <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcWalksIntroKindergarten)}">${t(labels.eotcWalksIntroKindergarten)}</p>
+            <ul class="eotc-walks-list">${eotcWalksKindergarten.map((item) => `<li data-template="${encodeURIComponent(item)}">${t(item)}</li>`).join('')}</ul>
+            <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcKindergartenBlurb)}">${t(labels.eotcKindergartenBlurb)}</p>
+            <ul class="eotc-consent-list">${eotcStatementsKindergarten.map((text) => `<li data-template="${encodeURIComponent(text)}">${t(text)}</li>`).join('')}</ul>
+            <label class="check"><input type="checkbox" name="eotcKindergartenConsent" /> <span data-template="${encodeURIComponent(labels.eotcKindergartenConsent)}">${t(labels.eotcKindergartenConsent)}</span></label>
           </fieldset>
           <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcEndNote)}">${t(labels.eotcEndNote)}</p>
         </section>
@@ -493,7 +507,7 @@ function render() {
         </section>
 
         <section class="card">${sectionHead('09')}
-          <label class="check custody-toggle"><input type="checkbox" name="custodyApplies" /> <span>${labels.custodyToggle}</span></label>
+          <label class="check custody-toggle"><input type="checkbox" name="custodyApplies" /> <span data-template="${encodeURIComponent(labels.custodyToggle)}">${t(labels.custodyToggle)}</span></label>
           <div id="custody-details" hidden>
             <input type="hidden" name="custodyArrangementCount" value="0" />
             <div id="custody-arrangements"></div>
@@ -523,7 +537,7 @@ function render() {
         </section>
 
         <section class="card sign-card">${sectionHead('11')}
-          <p>I confirm that the information above is correct and that I will advise the school of changes.</p>
+          <p data-template="${encodeURIComponent(labels.confirmStatement)}">${t(labels.confirmStatement)}</p>
           ${field(labels.anythingElse, 'anythingElseComments', 'textarea')}
           <label class="honeypot" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
           <div class="grid two">${field(labels.signature, 'signature', 'text', { required: true })}<div id="other-parent-signature" hidden>${field(labels.otherParentSignature, 'otherParentSignature', 'text', { required: true })}</div>${field(labels.signatureDate, 'signatureDate', 'date', { required: true })}</div>

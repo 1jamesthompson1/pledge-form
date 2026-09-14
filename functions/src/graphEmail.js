@@ -12,10 +12,16 @@ const sender = process.env.EMAIL_SENDER;
 const UNTICKED_PERMISSIONS = [
   ['Medical consent', 'medical', consentGroups.medical],
   ['School EOTC consent', 'eotcSchool', eotcStatementsSchool],
-  ['Kindergarten / Nursery EOTC consent', 'eotcKindergarten', eotcStatementsKindergarten],
+  ['Kindergarten / Nursery EOTC consent', 'eotcKindergartenConsent', eotcStatementsKindergarten, true],
   ['Conduct consent', 'conduct', consentGroups.conduct],
   ['Photos consent', 'photos', consentGroups.photos],
 ];
+
+function familyPronoun(familyType) {
+  if (familyType === 'together') return { pronoun: 'We', pronounLower: 'we', possessive: 'our', objectPronoun: 'us', beVerb: 'are' };
+  if (familyType === 'split') return { pronoun: 'I', pronounLower: 'I', possessive: 'my', objectPronoun: 'me', beVerb: 'am' };
+  return { pronoun: 'I/We', pronounLower: 'we', possessive: 'our', objectPronoun: 'us', beVerb: 'are' };
+}
 
 function formatSubmittedAt(pledge) {
   const raw = pledge.receivedAt || pledge.submittedAt;
@@ -72,15 +78,24 @@ function buildBody(pledge) {
   }
 
   const notConsented = [];
-  for (const [label, key, statements] of UNTICKED_PERMISSIONS) {
+  const pronounVars = familyPronoun(pledge.familyType);
+  const interpolateVars = {
+    schoolName: pledgeRules.schoolName,
+    year: pledgeRules.year,
+    child: childWord(schoolCount + kindergartenCount),
+    theirFace: theirFacePhrase(schoolCount + kindergartenCount),
+    ...pronounVars,
+  };
+  for (const [label, key, statements, single] of UNTICKED_PERMISSIONS) {
+    if (single) {
+      if (pledge[key] !== 'on') {
+        statements.forEach((text) => notConsented.push(`- ${label}: ${interpolate(text, interpolateVars)}`));
+      }
+      continue;
+    }
     statements.forEach((text, index) => {
       if (pledge[`${key}-${index}`] !== 'on') {
-        notConsented.push(`- ${label}: ${interpolate(text, {
-          schoolName: pledgeRules.schoolName,
-          year: pledgeRules.year,
-          child: childWord(schoolCount + kindergartenCount),
-          theirFace: theirFacePhrase(schoolCount + kindergartenCount),
-        })}`);
+        notConsented.push(`- ${label}: ${interpolate(text, interpolateVars)}`);
       }
     });
   }
