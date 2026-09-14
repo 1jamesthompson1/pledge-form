@@ -511,7 +511,7 @@ function render() {
 <fieldset><legend>${labels.paymentPlan}</legend><p class="muted" data-template="${encodeURIComponent(labels.paymentPlanNote)}">${t(labels.paymentPlanNote)}</p>${paymentPlanOptions.map((option) => `<label class="check"><input type="radio" name="paymentPlan" value="${option.label}" required /> <span>${option.label} <em class="plan-price" data-plan="${option.key}"></em></span></label>`).join('')}</fieldset>
            ${field(labels.pledgeComments, 'pledgeComments', 'textarea')}
            <p class="muted" data-template="${encodeURIComponent(labels.kindoPaymentsNote)}">${t(labels.kindoPaymentsNote)}</p>
-           ${expandable(labels.kindoInfoTitle, labels.kindoInfoBody)}
+           ${expandable(labels.kindoInfoTitle, labels.kindoInfoBody, { id: 'kindo-info' })}
         </section>
 
         <section class="card sign-card">${sectionHead('11')}
