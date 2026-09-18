@@ -21,8 +21,7 @@ const RELEASE_URL = 'https://github.com/1jamesthompson1/pledge-form/releases';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const POLICIES_URL = 'https://www.tera.school.nz/policies';
 const EOTC_CONSENT_LINKS = {
-  3: { 'available RAMS': POLICIES_URL },
-  6: { RAMs: POLICIES_URL },
+  3: { website: POLICIES_URL },
 };
 const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
