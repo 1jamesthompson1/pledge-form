@@ -93,7 +93,8 @@ input[readonly]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0
 .dev-popup-box { width: min(720px, 100%); max-height: 85vh; display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 20px 60px #183b5633; }
 .dev-popup-box header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }.dev-popup-box header h2 { font-size: 18px; }
 .dev-popup-close { border: 0; background: none; color: var(--ink); cursor: pointer; font: 700 20px 'DM Sans', sans-serif; }
-.dev-popup-json { overflow: auto; margin: 0; padding: 16px 18px; color: #e8f0f2; background: var(--ink); font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+.dev-popup-json { flex: 1 1 auto; min-height: 240px; width: 100%; resize: vertical; overflow: auto; margin: 0; padding: 16px 18px; color: #e8f0f2; background: var(--ink); border: 0; outline: none; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; tab-size: 2; }
+.dev-popup-error { margin: 0; padding: 10px 18px; color: #8a1c12; background: #fbe3e0; border-top: 1px solid #f0c4bf; font-size: 13px; }
 .dev-popup-box footer { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--line); }
 .dev-popup-box footer button { padding: 8px 14px; color: var(--blue); background: transparent; border: 1px solid var(--blue); border-radius: 999px; cursor: pointer; font: 700 12px 'DM Sans', sans-serif; }
 .dev-popup-box footer button:hover { background: #eef4f7; }

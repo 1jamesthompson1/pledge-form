@@ -743,30 +743,48 @@ function showSubmissionPopup(payload, onSend) {
   overlay.innerHTML = `
     <div class="dev-popup-box" role="dialog" aria-modal="true" aria-label="Submission JSON preview">
       <header><h2>Submission JSON</h2><button type="button" class="dev-popup-close" aria-label="Close">&times;</button></header>
-      <pre class="dev-popup-json"></pre>
+      <textarea class="dev-popup-json" spellcheck="false" aria-label="Editable submission JSON"></textarea>
+      <p class="dev-popup-error" role="alert" hidden></p>
       <footer>
         <button type="button" class="dev-popup-copy">Copy JSON</button>
-        <button type="button" class="dev-popup-send">Send anyway</button>
+        <button type="button" class="dev-popup-reset">Reset</button>
+        <button type="button" class="dev-popup-send">Send payload</button>
         <button type="button" class="dev-popup-close-btn">Close</button>
       </footer>
     </div>`;
-  overlay.querySelector('.dev-popup-json').textContent = json;
+  const textarea = overlay.querySelector('.dev-popup-json');
+  const errorElement = overlay.querySelector('.dev-popup-error');
+  textarea.value = json;
   const close = () => overlay.remove();
   overlay.querySelector('.dev-popup-close').addEventListener('click', close);
   overlay.querySelector('.dev-popup-close-btn').addEventListener('click', close);
   overlay.querySelector('.dev-popup-copy').addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText(json);
+      await navigator.clipboard.writeText(textarea.value);
       overlay.querySelector('.dev-popup-copy').textContent = 'Copied';
     } catch { /* Clipboard unavailable. */ }
   });
+  overlay.querySelector('.dev-popup-reset').addEventListener('click', () => {
+    textarea.value = json;
+    errorElement.hidden = true;
+  });
   overlay.querySelector('.dev-popup-send').addEventListener('click', () => {
+    let parsed;
+    try {
+      parsed = JSON.parse(textarea.value);
+    } catch (error) {
+      errorElement.textContent = `Invalid JSON: ${error.message}`;
+      errorElement.hidden = false;
+      textarea.focus();
+      return;
+    }
     overlay.remove();
-    onSend();
+    onSend(parsed);
   });
   overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); }, { once: true });
   document.body.appendChild(overlay);
+  textarea.focus();
 }
 
 function formatErrorTime() {
@@ -955,8 +973,8 @@ async function submissionError(response) {
   return error;
 }
 
-async function sendPledge(form) {
-  const payload = submissionPayload();
+async function sendPledge(form, payloadOverride) {
+  const payload = payloadOverride || submissionPayload();
   const body = JSON.stringify(payload);
   const honeypotFilled = Boolean(form.querySelector('[name="website"]')?.value.trim());
   const isSpam = honeypotFilled || (!new URLSearchParams(window.location.search).has('dev') && payload.timeOnPageMs < MIN_FILL_TIME_MS);
@@ -1029,9 +1047,9 @@ async function submit(event) {
     }
     if (isDev && !devPayloadConfirmed) {
       devPayloadConfirmed = true;
-      showSubmissionPopup(submissionPayload(), () => {
+      showSubmissionPopup(submissionPayload(), (customPayload) => {
         devPayloadConfirmed = false;
-        sendPledge(form);
+        sendPledge(form, customPayload);
       });
       return;
     }
