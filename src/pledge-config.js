@@ -4,7 +4,7 @@
 export const money = (amount) => `$${Number(amount || 0).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // Editable base price and discount schedule. Recommended amounts are calculated from these.
-const baseAmount = 4100;
+const baseAmount = 4250;
 const schoolDiscountSchedule = [0, 0.20, 0.40, 1, 1]; // fraction off full price for child 1..5
 const kindergartenDaysPerWeek = 5;
 
@@ -66,5 +66,5 @@ export const pledgeRules = {
     note: `The recommended amount is ${money(kindergartenDailyRate / schoolYearWeeks)} per day based on the full ${money(baseAmount)} amount. There are no multi-child discounts for kindergarten.`,
     recommendedByDays: kindergartenRecommendedByDays,
   },
-  disbursementPerChild: 400,
+  disbursementPerChild: 410,
 };

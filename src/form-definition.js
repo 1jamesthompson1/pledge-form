@@ -106,19 +106,19 @@ export const eotcStatementsKindergarten = [
   '{pronoun} give permission to visit the listed locations as part of our regular excursions.',
   '{pronoun} understand that there are risks associated with involvement in the kindergarten EOTC events and that while {pronounLower} minimize the risks, they cannot all be eliminated.',
   '{pronoun} understand that kindergarten identifies any foreseeable risks or hazards and implements correct management procedures to eliminate or minimise those risks.',
-  '{pronoun} acknowledge that to gain a better understanding of the risks involved {pronounLower} have read the available RAMS for each of the destinations (In the office, Noticeboards onsite).',
+  '{pronoun} acknowledge that to gain a better understanding of the risks involved {pronounLower} have read the available RAMS for each of the destinations (available on the website, in the office, and on noticeboards onsite).',
   '{pronoun} confirm {pronounLower} understand the Ratio: Kaiako/ Ākonga 2:16',
   '{pronoun} confirm {pronounLower} understand the method of Transport: Walking',
   'Planned Route: Please see the individual routes for each walk on the RAMs',
 ];
 
 export const eotcWalksKindergarten = [
-  'Raumati Beach',
+  'Raumati South Beach',
   'Queen Elizabeth Farm',
-  'Dunes / Blackberry patch',
+  'Big Dipper',
   'Leinster Ave Park',
-  'Te Rā School site',
-  'Tennis Court Rd Park',
+  'Te Rā School Site',
+  'Tennis Court Road Park',
 ];
 
 export const eotcLegends = {
@@ -210,13 +210,13 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   custodyLivingArrangements: 'What is the regular rhythm for where your children will be living?',
   custodyLegalRestrictions: 'Is there any person who does not have the legal right of access to your children? If so please provide a copy of the court order to the school office.',
   custodyFinancialArrangements: 'What are the financial arrangements for the pledge, disbursements, camps and other costs (i.e. 50/50, etc.)?',
-  custodyFinancialTooltip: 'Camps and other costs throughout the year will be automatically split in Kindo based on whatever agreement you have both agreed to and told us about.',
+  custodyFinancialTooltip: 'If the other parent/caregiver states something different to you in their pledge, the school will contact you to clarify. When agreed this split will be set up automatically.',
   custodyExplanation: 'Further details about the custodial arrangement',
   custodyAddAnother: 'Add another custodial arrangement',
   custodyRemove: 'Remove arrangement',
   privacyStatementTitle: 'Privacy statement',
   photosWithdrawNote: 'You can change or withdraw your photo consent at any time by contacting the school office.',
-  privacyNotice: 'We handle your information as described in our privacy statement. By submitting this form you confirm you have read it.',
+  privacyNotice: 'We handle your information as described in our privacy statement. By submitting this form, you confirm you have read and agree to it.',
   anythingElse: 'Anything else to add?',
   confirmStatement: '{pronoun} confirm that the information above is correct and that {pronounLower} will advise the school of changes.',
   signature: 'Parent / guardian signature (typed)',

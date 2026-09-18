@@ -17,7 +17,13 @@ const contactEmail = window.PLEDGE_CONFIG?.contactEmail;
 const trustAdministrator = trustAdministratorPhrase(contactEmail);
 const submitUrl = window.PLEDGE_CONFIG?.submitUrl;
 const formVersion = typeof __FORM_VERSION__ === 'string' ? __FORM_VERSION__ : '';
+const RELEASE_URL = 'https://github.com/1jamesthompson1/pledge-form/releases';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const POLICIES_URL = 'https://www.tera.school.nz/policies';
+const EOTC_CONSENT_LINKS = {
+  3: { 'available RAMS': POLICIES_URL },
+  6: { RAMs: POLICIES_URL },
+};
 const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
 const FORM_LOAD_TIME = Date.now();
@@ -462,12 +468,12 @@ function render() {
 
         <section class="card">${sectionHead('02')}
           <p class="muted" data-template="${encodeURIComponent(labels.commitmentIntro)}">${t(labels.commitmentIntro)}</p>
-          ${checklist('commitment', true)}
+          ${checklist('commitment')}
         </section>
 
         <section class="card">${sectionHead('03')}
           <p class="muted" data-template="${encodeURIComponent(labels.conductIntro)}">${t(labels.conductIntro)}</p>
-          ${checklist('conduct', true, { 'the school website': 'https://www.tera.school.nz/policies' })}
+          ${checklist('conduct', false, { 'the school website': POLICIES_URL })}
         </section>
 
         <section class="card">${sectionHead('04')}
@@ -501,7 +507,11 @@ function render() {
             <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcWalksIntroKindergarten)}">${t(labels.eotcWalksIntroKindergarten)}</p>
             <ul class="eotc-walks-list">${eotcWalksKindergarten.map((item) => `<li data-template="${encodeURIComponent(item)}">${t(item)}</li>`).join('')}</ul>
             <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcKindergartenBlurb)}">${t(labels.eotcKindergartenBlurb)}</p>
-            <ul class="eotc-consent-list">${eotcStatementsKindergarten.map((text) => `<li data-template="${encodeURIComponent(text)}">${t(text)}</li>`).join('')}</ul>
+            <ul class="eotc-consent-list">${eotcStatementsKindergarten.map((text, index) => {
+              const links = EOTC_CONSENT_LINKS[index] || {};
+              const linksAttr = Object.keys(links).length ? ` data-links="${encodeURIComponent(JSON.stringify(links))}"` : '';
+              return `<li${linksAttr} data-template="${encodeURIComponent(text)}">${applyLinks(t(text), links)}</li>`;
+            }).join('')}</ul>
             <label class="check"><input type="checkbox" name="eotcKindergartenConsent" /> <span data-template="${encodeURIComponent(labels.eotcKindergartenConsent)}">${t(labels.eotcKindergartenConsent)}</span></label>
           </fieldset>
           <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcEndNote)}">${t(labels.eotcEndNote)}</p>
@@ -562,7 +572,7 @@ function render() {
           <p class="fine-print">Submissions are sent securely to the school’s configured service.</p>
         </section>
       </form>
-      <footer>${pledgeRules.returnBy && !validStartDate ? `<p class="return-by reminder">${t(labels.returnByBottom, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}<p><a href="#privacy-statement">Privacy statement</a></p></footer>
+      <footer>${pledgeRules.returnBy && !validStartDate ? `<p class="return-by reminder">${t(labels.returnByBottom, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}<p><a href="#privacy-statement">Privacy statement</a></p>${formVersion ? `<p class="form-version">Version <a href="${RELEASE_URL}/tag/v${formVersion}" target="_blank" rel="noopener">${formVersion}</a></p>` : ''}</footer>
     </div>`;
 }
 
