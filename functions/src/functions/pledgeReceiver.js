@@ -143,14 +143,16 @@ app.http('pledgeReceiver', {
         dev: payload.dev === true || payload.dev === 'true',
       };
 
+      const versionMismatch = Boolean(pledge.formVersion) && pledge.formVersion !== backendFormVersion;
       const auditFields = {
         ParentName: pledge.parentName || '',
         SubmittedAt: pledge.submittedAt || pledge.receivedAt,
         FormVersion: String(pledge.formVersion || ''),
+        VersionMismatch: versionMismatch ? 'true' : 'false',
         Dev: pledge.dev ? 'true' : 'false',
       };
 
-      if (pledge.formVersion && pledge.formVersion !== backendFormVersion) {
+      if (versionMismatch) {
         context.warn(`Form version mismatch: submission is ${pledge.formVersion}, backend is ${backendFormVersion}`);
       }
 
@@ -208,7 +210,11 @@ app.http('pledgeReceiver', {
       if (process.env.EMAIL_ENABLED === 'true') {
         try {
           const pdfBuffer = await buildPledgePdf(pledge);
-          await sendPledgeNotification(pledge, pdfBuffer);
+          await sendPledgeNotification(pledge, pdfBuffer, {
+            formVersion: pledge.formVersion,
+            backendFormVersion,
+            mismatch: versionMismatch,
+          });
           context.log('Office notification email sent with PDF attached');
           await auditUpdate({ ...auditFields, EmailSent: 'true' });
         } catch (error) {
