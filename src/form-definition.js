@@ -163,6 +163,7 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   noKindergartenChildren: 'No Kindergarten / Nursery children added.',
   parentName: 'Parent / guardian name',
   otherParentName: 'Other parent / guardian name',
+  otherParentEmail: 'Other parent / guardian email address',
   familyTypeLegend: 'Which best describes your family situation?',
   familyTogether: 'Both parents / guardians are pledging together.',
   familySplit: 'Parents / guardians are pledging separately (e.g., separated families or single parents).',

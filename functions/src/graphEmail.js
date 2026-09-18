@@ -41,6 +41,7 @@ function buildBody(pledge) {
   const lines = [
     `Parent / guardian: ${pledge.parentName}`,
     `Email: ${pledge.email}`,
+    ...(pledge.otherParentEmail ? [`Other parent / guardian email: ${pledge.otherParentEmail}`] : []),
     '',
     'School children:',
   ];
@@ -185,10 +186,11 @@ export async function sendPledgeNotification(pledge, pdfBuffer) {
 export async function sendParentConfirmation(pledge) {
   const isDev = pledge.dev === true;
   const devEmail = process.env.EMAIL_DEV;
-  const parentEmail = isDev
-    ? (devEmail || process.env.EMAIL_ADMIN || '')
-    : String(pledge.email || '').trim();
-  if (!parentEmail) {
+  const recipientEmails = isDev
+    ? [devEmail || process.env.EMAIL_ADMIN || '']
+    : [String(pledge.email || '').trim(), String(pledge.otherParentEmail || '').trim()];
+  const parentEmails = [...new Set(recipientEmails.filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))];
+  if (!parentEmails.length) {
     throw new Error(isDev
       ? 'No EMAIL_DEV or EMAIL_ADMIN configured to receive the test confirmation'
       : 'No parent/guardian email address on the submission');
@@ -226,13 +228,9 @@ export async function sendParentConfirmation(pledge) {
     from: {
       emailAddress: { address: sender },
     },
-    toRecipients: [
-      {
-        emailAddress: {
-          address: parentEmail,
-        },
-      },
-    ],
+    toRecipients: parentEmails.map((address) => ({
+      emailAddress: { address },
+    })),
   };
 
   const replyToAddress = process.env.EMAIL_ADMIN;

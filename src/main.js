@@ -374,6 +374,13 @@ function updateSeparateFamilySection() {
     other.required = together;
     if (!together) other.value = '';
   }
+  const otherEmail = document.querySelector('[name="otherParentEmail"]');
+  if (otherEmail) {
+    const wrapper = otherEmail.closest('label');
+    if (wrapper) wrapper.hidden = !together;
+    otherEmail.disabled = !together;
+    if (!together) otherEmail.value = '';
+  }
   const otherSignature = document.querySelector('[name="otherParentSignature"]');
   if (otherSignature) {
     const wrapper = document.querySelector('#other-parent-signature');
@@ -448,7 +455,7 @@ function render() {
             <label class="check"><input type="radio" name="familyType" value="together" required /> <span>${labels.familyTogether}</span></label>
             <label class="check"><input type="radio" name="familyType" value="split" required /> <span>${labels.familySplit}</span></label>
           </fieldset>
-          ${field(labels.otherParentName, 'otherParentName', 'text', { required: true })}
+          <div class="grid two">${field(labels.otherParentName, 'otherParentName', 'text', { required: true })}${field(labels.otherParentEmail, 'otherParentEmail', 'email')}</div>
           <h3>${labels.childrenQuestion}</h3><div class="grid two"><label>${labels.schoolChildren}<select name="schoolChildCount" required>${Array.from({ length: pledgeRules.maxChildrenPerGroup + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select></label><label>${labels.kindergartenChildren}<select name="kindergartenChildCount" required>${Array.from({ length: pledgeRules.maxChildrenPerGroup + 1 }, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select></label></div>
           <h3>${labels.schoolChildren}</h3><div id="school-children"></div><h3>${labels.kindergartenChildren}</h3><div id="kindergarten-children"></div>
         </section>
@@ -905,6 +912,7 @@ function printBlankForm() {
   [
     familyType,
     form.querySelector('[name="otherParentName"]')?.closest('label'),
+    form.querySelector('[name="otherParentEmail"]')?.closest('label'),
     document.querySelector('#other-parent-signature'),
     document.querySelector('#split-payment-note'),
   ].filter(Boolean).forEach((element) => { element.hidden = true; });
@@ -1002,6 +1010,11 @@ async function submit(event) {
     }
     const emailInput = form.querySelector('[name="email"]');
     if (emailInput) emailInput.setCustomValidity(EMAIL_PATTERN.test(emailInput.value.trim()) ? '' : 'Please enter a valid email address');
+    const otherEmailInput = form.querySelector('[name="otherParentEmail"]');
+    if (otherEmailInput) {
+      const value = otherEmailInput.value.trim();
+      otherEmailInput.setCustomValidity(!value || EMAIL_PATTERN.test(value) ? '' : 'Please enter a valid email address');
+    }
     if (!form.reportValidity()) {
       const firstInvalid = form.querySelector('input:invalid, select:invalid, textarea:invalid');
       const status = document.querySelector('#save-status');
@@ -1035,7 +1048,7 @@ document.querySelector('meta[name="description"]')?.setAttribute('content', `Spe
 const form = document.querySelector('#pledge-form');
 restoreDraft();
 form.addEventListener('input', (event) => {
-  if (event.target.name === 'email') event.target.setCustomValidity('');
+  if (event.target.name === 'email' || event.target.name === 'otherParentEmail') event.target.setCustomValidity('');
   if (event.target.name?.endsWith('Amount') || event.target.name?.endsWith('Disbursement')) {
     userEditedAmounts.add(event.target.name);
   }

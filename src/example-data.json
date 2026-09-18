@@ -4,6 +4,7 @@
     "otherParentName": "Test Parent Two",
     "familyType": "together",
     "email": "test@example.com",
+    "otherParentEmail": "test.two@example.com",
     "schoolChildCount": "3",
     "kindergartenChildCount": "1",
     "school1Name": "Jeremy",

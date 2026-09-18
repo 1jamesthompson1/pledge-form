@@ -57,6 +57,10 @@ function validate(payload) {
     errors.push('Invalid email address');
   }
 
+  if (payload.otherParentEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.otherParentEmail)) {
+    errors.push('Invalid other parent / guardian email address');
+  }
+
   return errors;
 }
 
