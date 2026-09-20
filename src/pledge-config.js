@@ -66,5 +66,5 @@ export const pledgeRules = {
     note: `The recommended amount is ${money(kindergartenDailyRate / schoolYearWeeks)} per day based on the full ${money(baseAmount)} amount. There are no multi-child discounts for kindergarten.`,
     recommendedByDays: kindergartenRecommendedByDays,
   },
-  disbursementPerChild: 410,
+  disbursementPerChild: 400,
 };

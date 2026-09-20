@@ -22,7 +22,7 @@ export const childWord = (count) => (count === 1 ? 'child' : 'children');
 export const theirFacePhrase = (count) => (count === 1 ? 'their face is' : 'their faces are');
 
 export const trustAdministratorPhrase = (email) => (email
-  ? `the Seirian at <a href="mailto:${email}">${email}</a>`
+  ? `<a href="mailto:${email}">${email}</a>`
   : 'the pledge form administrator');
 
 export const formatLongDate = (isoDate) => {

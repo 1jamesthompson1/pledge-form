@@ -44,8 +44,8 @@ fieldset { margin: 28px 0 0; padding: 0; border: 0; } legend { margin-bottom: 9p
 .muted, .fine-print { color: #657477; font-size: 14px; }.eotc-note { margin-top: 14px; font-size: 12px; }.eotc-walks-list { margin: 8px 0 0; padding-left: 22px; color: #657477; font-size: 12px; }.eotc-walks-list li { margin: 4px 0; }.eotc-consent-list { margin: 12px 0 0; padding-left: 22px; color: #536269; font-size: 13px; }.eotc-consent-list li { margin: 6px 0; }.eotc-consent-list a { color: var(--blue); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }.pledge-table { margin: 25px 0; border-top: 1px solid var(--ink); }.table-head, .table-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }.table-head { color: var(--ink); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }.table-row span:nth-child(2) { color: #687579; font-size: 14px; }.total-line { max-width: 300px; margin: 22px 0 8px; }
 .rule-note { padding: 14px; color: #536269; background: rgba(252, 188, 30, .14); font-size: 13px; }.rule-note + .amount-table, .info-panel + .amount-table { margin-top: 18px; }
 .start-date-note { padding: 14px; color: #536269; background: rgba(252, 188, 30, .14); border-left: 3px solid var(--blue); font-size: 13px; }
-.start-date-field { display: inline-flex; align-items: center; gap: 8px; color: #536269; font-size: 13px; font-weight: 400; }
-.start-date-field input { width: auto; padding: 6px 8px; }
+.start-date-field { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #536269; font-size: 13px; font-weight: 400; }
+.start-date-field input { width: auto; max-width: 100%; min-width: 0; padding: 6px 8px; -webkit-appearance: none; appearance: none; }
 #start-date-summary { display: block; margin-top: 6px; color: #657477; font-size: 12px; }
 .start-date-warning { padding: 14px; color: #6b3a1e; background: rgba(252, 188, 30, .14); border-left: 3px solid var(--orange); font-size: 13px; }
 .start-date-note strong { color: var(--ink); }
