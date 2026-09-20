@@ -82,7 +82,7 @@ input[readonly]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0
   .hero { padding: 10px 0 16px; }
   .hero h1 { font-size: 26px; }
   .hero .intro { margin: 8px 0 0; }
-  .draft-warning, .status, .honeypot, .submit, .print-button, #submit-success, .admin-panel, .dev-fill, #add-custody-arrangement, .remove-custody-arrangement { display: none !important; }
+  .draft-warning, .status, .honeypot, .submit, .print-button, #submit-success, .admin-panel, .dev-fill, #add-custody-arrangement, .remove-custody-arrangement, .submit-error { display: none !important; }
   input, select, textarea { border: 1px solid #8a8a8a; }
   textarea { min-height: 46px; }
   .info-panel summary::after { display: none; }
