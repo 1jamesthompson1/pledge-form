@@ -221,7 +221,7 @@ function dynamicChildren() {
     const details = kind === 'school'
       ? field(t(labels.childClass), `${kind}${n}Class`, 'select', { required: true, options: classOptions })
       : `${field(t(labels.childAge, { termStart: firstTermStartLabel }), `${kind}${n}Age`, 'select', { required: true, options: ageOptions })}${field(labels.daysPerWeek, `${kind}${n}Days`, 'select', { required: true, options: daysOptions })}`;
-    return `<div class="child-row"><strong>${title}</strong>${field(labels.childName, `${kind}${n}Name`, 'text', { required: true })}${details}</div>`;
+    return `<div class="child-row ${kind}"><strong>${title}</strong>${field(labels.childName, `${kind}${n}Name`, 'text', { required: true })}${details}</div>`;
   }).join('');
   document.querySelector('#school-children').innerHTML = rows('school', schoolCount) || `<p class="muted">${labels.noSchoolChildren}</p>`;
   document.querySelector('#kindergarten-children').innerHTML = rows('kindergarten', kindergartenCount) || `<p class="muted">${labels.noKindergartenChildren}</p>`;
@@ -532,7 +532,7 @@ function render() {
         </section>
 
         <section class="card">${sectionHead('10')}
-          <p class="callout" id="split-payment-note" hidden>${labels.splitPaymentNote}</p>
+          <div class="split-note" id="split-payment-note" hidden><strong>${labels.splitPaymentTitle}</strong><p>${labels.splitPaymentNote}</p></div>
           <p class="muted">The contributions are donation-based. Recommended amounts are a guideline, not fees. Please contact ${trustAdministrator} if you need to discuss financial hardship.<br><br>As these are donations you may be able to claim back up to 33% of the amount as a donation tax credit from IRD.</p>
           <p class="muted" data-template="${encodeURIComponent(labels.pledgeOtherCostsNote)}">${t(labels.pledgeOtherCostsNote)}</p>
           ${validStartDate ? `<p class="start-date-note" id="start-date-note"><label class="start-date-field">These recommended amounts are based on a start date of <input type="date" id="start-date-input" value="${escapeHtml(startDateParam)}" /></label><span id="start-date-summary">${t(labels.startDateSummary, { weeks: weeksRemaining, totalWeeks: totalSchoolWeeks })}</span></p>` : invalidStartDateNote ? `<p class="start-date-warning">${escapeHtml(invalidStartDateNote)}</p>` : ''}
