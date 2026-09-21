@@ -1,4 +1,6 @@
 import { ClientSecretCredential } from '@azure/identity';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { money, pledgeRules } from './pledgeConfig.js';
 import {
   interpolate, consentGroups, eotcStatementsSchool, eotcStatementsKindergarten, childWord, theirFacePhrase,
@@ -37,6 +39,17 @@ function formatSubmittedAt(pledge) {
     minute: '2-digit',
     timeZone: 'Pacific/Auckland',
   });
+}
+
+// Build the PDF attachment name from the parent / guardian names, e.g.
+// "JaneSmith-JohnDoe.pdf". Whitespace is removed and characters that are
+// invalid in filenames are stripped, so the name is safe to attach.
+function pdfFileName(pledge) {
+  const clean = (value) => String(value || '')
+    .replace(/\s+/g, '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '');
+  const names = [clean(pledge.parentName), clean(pledge.otherParentName)].filter(Boolean);
+  return `${names.join('-') || 'pledge'}.pdf`;
 }
 
 function buildBody(pledge, warnings = []) {
@@ -125,7 +138,59 @@ async function getGraphToken() {
   return credential.getToken('https://graph.microsoft.com/.default');
 }
 
+function slug(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+// Local demo: when EMAIL_SAVE_DIR is set, write the fully-built message to disk
+// instead of calling Microsoft Graph. This lets you inspect exactly what would
+// have been sent — recipient, subject, body and attachments — with no Entra
+// credentials and without emailing anyone. Leave unset in production.
+async function saveMailToDisk(message) {
+  const dir = process.env.EMAIL_SAVE_DIR;
+  await mkdir(dir, { recursive: true });
+
+  const recipients = (message.toRecipients || []).map((r) => r.emailAddress?.address).filter(Boolean);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const base = `${stamp}-${slug(recipients.join('-')) || 'email'}`;
+  const attachments = message.attachments || [];
+
+  const meta = {
+    savedAt: new Date().toISOString(),
+    dryRun: true,
+    from: message.from?.emailAddress?.address || '',
+    to: recipients,
+    replyTo: (message.replyTo || []).map((r) => r.emailAddress?.address).filter(Boolean),
+    subject: message.subject,
+    attachments: attachments.map((attachment) => ({
+      name: attachment.name,
+      contentType: attachment.contentType,
+      bytes: Buffer.from(attachment.contentBytes || '', 'base64').length,
+    })),
+  };
+
+  await writeFile(path.join(dir, `${base}.json`), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+  await writeFile(path.join(dir, `${base}.txt`), `${message.subject}\n\n${message.body?.content || ''}\n`, 'utf8');
+  for (const [index, attachment] of attachments.entries()) {
+    await writeFile(
+      path.join(dir, `${base}-${index + 1}-${attachment.name || 'attachment'}`),
+      Buffer.from(attachment.contentBytes || '', 'base64'),
+    );
+  }
+
+  return base;
+}
+
 async function sendMail(message) {
+  if (process.env.EMAIL_SAVE_DIR) {
+    const base = await saveMailToDisk(message);
+    console.log(`[email dry run] EMAIL_SAVE_DIR is set — wrote ${base}.json/.txt to ${process.env.EMAIL_SAVE_DIR} instead of sending`);
+    return;
+  }
   if (!sender) {
     throw new Error('EMAIL_SENDER is not configured');
   }
@@ -188,7 +253,7 @@ export async function sendPledgeNotification(pledge, pdfBuffer, versionInfo = {}
     message.attachments = [
       {
         '@odata.type': '#microsoft.graph.fileAttachment',
-        name: `pledge-${(pledge.receivedAt || new Date().toISOString()).slice(0, 10)}.pdf`,
+        name: pdfFileName(pledge),
         contentType: 'application/pdf',
         contentBytes: pdfBuffer.toString('base64'),
       },
