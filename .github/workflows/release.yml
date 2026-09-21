@@ -45,6 +45,10 @@ jobs:
           git commit -m "chore: publish $GITHUB_REF_NAME from ${GITHUB_SHA::8}"
           git push --force origin release
           gh release upload "$GITHUB_REF_NAME" /tmp/pledge-form.html#te-ra-pledge-form.html --clobber
+          # Give GitHub a moment to make the new release branch commit readable
+          # to the CDN's origin fetcher before purging, so the purge doesn't
+          # repopulate the cache with the previous version.
+          sleep 30
           curl -sSf "https://purge.jsdelivr.net/gh/1jamesthompson1/pledge-form@release/pledge-form.html"
 
   verify-functions:

@@ -9,10 +9,11 @@ const clientId = process.env.AZURE_CLIENT_ID;
 const clientSecret = process.env.AZURE_CLIENT_SECRET;
 const sender = process.env.EMAIL_SENDER;
 
+// [label, field name prefix, statements, single checkbox?, only relevant when this child group has children]
 const UNTICKED_PERMISSIONS = [
   ['Medical consent', 'medical', consentGroups.medical],
-  ['School EOTC consent', 'eotcSchool', eotcStatementsSchool],
-  ['Kindergarten / Nursery EOTC consent', 'eotcKindergartenConsent', eotcStatementsKindergarten, true],
+  ['School EOTC consent', 'eotcSchool', eotcStatementsSchool, false, 'school'],
+  ['Kindergarten / Nursery EOTC consent', 'eotcKindergartenConsent', eotcStatementsKindergarten, true, 'kindergarten'],
   ['Conduct consent', 'conduct', consentGroups.conduct],
   ['Photos consent', 'photos', consentGroups.photos],
 ];
@@ -87,7 +88,12 @@ function buildBody(pledge, warnings = []) {
     theirFace: theirFacePhrase(schoolCount + kindergartenCount),
     ...pronounVars,
   };
-  for (const [label, key, statements, single] of UNTICKED_PERMISSIONS) {
+  const scopeCounts = { school: schoolCount, kindergarten: kindergartenCount };
+  for (const [label, key, statements, single, scope] of UNTICKED_PERMISSIONS) {
+    // Skip permissions that only apply to a child group the family has none of,
+    // otherwise the unticked (and therefore unsubmitted) checkboxes are reported
+    // to the office as "not consented" even though they were never offered.
+    if (scope && scopeCounts[scope] === 0) continue;
     if (single) {
       if (pledge[key] !== 'on') {
         statements.forEach((text) => notConsented.push(`- ${label}: ${interpolate(text, interpolateVars)}`));
