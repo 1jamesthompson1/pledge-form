@@ -25,8 +25,9 @@ const EOTC_CONSENT_LINKS = {
 };
 const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
-const FORM_LOAD_TIME = Date.now();
-const MIN_FILL_TIME_MS = 5000;
+// Monotonic clock: a wall-clock change (NTP correction, timezone edit) must not
+// turn a genuine submission into a negative or tiny "time on page".
+const FORM_LOAD_TIME = performance.now();
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const isDev = window.PLEDGE_CONFIG?.dev === true;
 const isDraft = window.PLEDGE_CONFIG?.draft === true;
@@ -355,7 +356,6 @@ function updateCustodySection() {
       ${field(labels.custodyLivingArrangements, `custody-${index}-livingArrangements`, 'textarea', { required: true })}
       ${field(labels.custodyLegalRestrictions, `custody-${index}-legalRestrictions`, 'textarea', { required: true })}
       ${field(labels.custodyFinancialArrangements, `custody-${index}-financialArrangements`, 'textarea', { required: true, tooltip: labels.custodyFinancialTooltip })}
-      ${field(labels.custodyExplanation, `custody-${index}-explanation`, 'textarea')}
       ${index > 0 ? `<button type="button" class="remove-custody-arrangement" data-index="${index}">${labels.custodyRemove}</button>` : ''}
     </div>`;
   }).join('');
@@ -513,7 +513,6 @@ function render() {
             }).join('')}</ul>
             <label class="check"><input type="checkbox" name="eotcKindergartenConsent" /> <span data-template="${encodeURIComponent(labels.eotcKindergartenConsent)}">${t(labels.eotcKindergartenConsent)}</span></label>
           </fieldset>
-          <p class="fine-print eotc-note" data-template="${encodeURIComponent(labels.eotcEndNote)}">${t(labels.eotcEndNote)}</p>
         </section>
 
         <section class="card">${sectionHead('08')}
@@ -638,7 +637,7 @@ function submissionPayload() {
   return {
     form: formData(),
     submittedAt: new Date().toISOString(),
-    timeOnPageMs: Date.now() - FORM_LOAD_TIME,
+    timeOnPageMs: Math.round(performance.now() - FORM_LOAD_TIME),
     formVersion,
     dev: isDev || params.has('dev'),
     ...(currentStartDateValue ? { startDate: currentStartDateValue } : {}),
@@ -985,13 +984,10 @@ async function submissionError(response) {
 async function sendPledge(form, payloadOverride) {
   const payload = payloadOverride || submissionPayload();
   const body = JSON.stringify(payload);
-  const honeypotFilled = Boolean(form.querySelector('[name="website"]')?.value.trim());
-  const isSpam = honeypotFilled || (!new URLSearchParams(window.location.search).has('dev') && payload.timeOnPageMs < MIN_FILL_TIME_MS);
   const button = form.querySelector('.submit');
-  if (isSpam) {
-    showSuccess(button);
-    return;
-  }
+  // Never drop a submission on the client: the backend archives everything and
+  // decides what is spam, so a false positive stays recoverable. A honeypot or
+  // short fill time only flags the office email; it never fakes a success.
   if (new TextEncoder().encode(body).length > MAX_BODY_BYTES) {
     showSubmitError(new Error('This form is too long to submit (over 2 MB)'));
     return;
