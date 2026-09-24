@@ -202,7 +202,7 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   emergencyContact: 'Contact {n}',
   emergencyName: 'Name',
   emergencyPhone: 'Phone number',
-  emergencyRelationship: 'Relationship',
+  emergencyRelationship: 'Relationship to child',
   emergencyComments: 'Comments about emergency contacts',
   custodyToggle: '{possessive} children live across more than one household or have special custodial arrangements.',
   custodyArrangement: 'Custodial arrangement {n}',
