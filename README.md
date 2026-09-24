@@ -122,6 +122,20 @@ When a start date is set, a note appears in the pledge section ("These recommend
 
 Open the form with `?admin=1` (or `?admin=true`) to show an admin panel at the top of the form. It offers three tools: a mid-year start-link generator (builds a shareable URL with the `startDate` parameter for families joining partway through the year), a JSON loader that repopulates the form from a saved submission payload (`{ form, ... }`) or a flat form object, for reprinting or reprocessing a pledge, and a **Print blank form** button that prints a blank hand-fill version with 3 school children and 2 Kindergarten / Nursery children (one custodial arrangement included), restoring the current answers afterwards. This is a client-side convenience only — `admin=1` is not a security boundary.
 
+## Tests
+
+```sh
+npm test            # frontend unit + config parity + backend integration
+npm run test:e2e    # full browser flow against the local backend
+```
+
+- **Frontend** (`tests/frontend/`, Vitest + jsdom): the pure school-year/pro-rating maths in `src/pledge-math.js`, plus a jsdom run of the real form module covering rendering, test-data loading and submission.
+- **Config parity** (`functions/test/parity/`, Node's test runner): the generated backend copies — `pledgeConfig.js`, `formDefinition.js`, `formVersion.js` and `pledgeForm.html` — must match the frontend sources, so the PDF and email cannot drift from the form.
+- **Backend integration** (`functions/test/backend/`, Node's test runner + Azurite): invokes the real `handlePledge` handler to cover validation, spam flagging (nothing is suppressed — flagged submissions are still archived and delivered), blob archiving, audit rows, retention cleanup and the dry-run email routing. Azurite is started automatically if one is not already running on port 10000.
+- **End-to-end** (`functions/test/e2e/`, Puppeteer + `@sparticuz/chromium`): builds the bundle, serves it with an injected `window.PLEDGE_CONFIG`, drives the real form in Chromium, and asserts the archived blob, audit row and captured emails.
+
+`npm run test:e2e` rebuilds the bundle first, so it reflects the working tree.
+
 ## Releases
 
 Work directly on `main`. Commits follow Conventional Commits, for example:

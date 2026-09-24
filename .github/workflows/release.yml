@@ -72,3 +72,9 @@ jobs:
       - name: Sync shared config and smoke test PDF against example data
         working-directory: functions
         run: npm run sync:config && npm test
+      - name: Config parity and backend integration tests
+        working-directory: functions
+        run: npm run test:parity && npm run test:backend
+      - name: End-to-end form test
+        working-directory: functions
+        run: npm run test:e2e

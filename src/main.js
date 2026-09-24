@@ -1,5 +1,6 @@
 import './style.css';
 import { money, pledgeRules } from './pledge-config.js';
+import { parseStartDate, totalSchoolWeeks, computeScaling } from './pledge-math.js';
 import {
   interpolate, formatLongDate, formatLongDateOrdinal, sections, sectionTitle, consentGroups,
   eotcStatementsSchool, eotcStatementsKindergarten, eotcWalksKindergarten, eotcLegends, labels, childWord,
@@ -31,37 +32,12 @@ const FORM_LOAD_TIME = performance.now();
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const isDev = window.PLEDGE_CONFIG?.dev === true;
 const isDraft = window.PLEDGE_CONFIG?.draft === true;
-const successHTML = '<div class="success"><span class="success-mark">✓</span><p class="eyebrow">Pledge received</p><h2>Thank you, your pledge has been submitted.</h2><p>The school will be in touch if anything needs clarification.</p></div>';
+const successHTML = '<div class="success"><span class="success-mark">✓</span><p class="eyebrow">Pledge received</p><h2>Thank you, your pledge has been submitted.</h2><p>The school will be in touch if anything needs clarification.</p><p class="success-warning" id="success-warning" role="alert" hidden></p></div>';
 const params = new URLSearchParams(window.location.search);
 const isAdmin = ['1', 'true'].includes(params.get('admin'));
 const startDateParam = params.get('startDate') || params.get('startdate');
-const parseStartDate = (raw) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(raw))) return null;
-  const date = new Date(`${raw}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return null;
-  const [year, month, day] = raw.split('-').map(Number);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
-  return date;
-};
 const firstTermStart = pledgeRules.schoolYear?.terms?.[0]?.start;
 const firstTermStartLabel = formatLongDate(firstTermStart);
-const totalSchoolWeeks = (() => {
-  const terms = pledgeRules.schoolYear?.terms || [];
-  if (!terms.length) return pledgeRules.weeksPerYear;
-  return terms.reduce((total, term) => {
-    const start = new Date(`${term.start}T00:00:00`);
-    const end = new Date(`${term.end}T00:00:00`);
-    const days = Math.round((end - start) / 86400000) + 1;
-    return total + Math.ceil(days / 7);
-  }, 0);
-})();
-const schoolYearMonths = (() => {
-  const terms = pledgeRules.schoolYear?.terms || [];
-  if (!terms.length) return 12;
-  const start = new Date(`${terms[0].start}T00:00:00`);
-  const end = new Date(`${terms.at(-1).end}T00:00:00`);
-  return end.getMonth() - start.getMonth() + 1;
-})();
 const paymentPlanOptions = [
   { key: 'week', label: 'Weekly' },
   { key: 'fortnight', label: 'Fortnightly' },
@@ -70,35 +46,6 @@ const paymentPlanOptions = [
   { key: 'lump', label: 'Lump sum' },
   { key: 'other', label: 'Other' },
 ];
-const fullPeriods = {
-  weeks: totalSchoolWeeks,
-  factor: 1,
-  terms: pledgeRules.termsPerYear,
-  spanWeeks: pledgeRules.schoolYearWeeks,
-  months: schoolYearMonths,
-};
-const computeScaling = (date) => {
-  const terms = pledgeRules.schoolYear?.terms || [];
-  if (!date || !terms.length) return { ...fullPeriods };
-  let weeks = 0;
-  for (const term of terms) {
-    const termStart = new Date(`${term.start}T00:00:00`);
-    const termEnd = new Date(`${term.end}T00:00:00`);
-    const effective = date > termStart ? date : termStart;
-    if (effective <= termEnd) weeks += Math.ceil((Math.round((termEnd - effective) / 86400000) + 1) / 7);
-  }
-  const firstStart = new Date(`${terms[0].start}T00:00:00`);
-  const effectiveStart = date > firstStart ? date : firstStart;
-  const lastEnd = new Date(`${terms.at(-1).end}T00:00:00`);
-  const spanDays = Math.round((lastEnd - effectiveStart) / 86400000) + 1;
-  return {
-    weeks,
-    factor: totalSchoolWeeks > 0 ? weeks / totalSchoolWeeks : 1,
-    terms: Math.max(1, terms.filter((term) => date <= new Date(`${term.end}T00:00:00`)).length),
-    spanWeeks: Math.max(1, Math.ceil(spanDays / 7)),
-    months: Math.max(1, (lastEnd.getFullYear() - effectiveStart.getFullYear()) * 12 + (lastEnd.getMonth() - effectiveStart.getMonth()) + 1),
-  };
-};
 let startDate = parseStartDate(startDateParam);
 const validStartDate = Boolean(startDate);
 const invalidStartDateNote = startDateParam && !validStartDate
@@ -864,11 +811,16 @@ function showSubmitError(error) {
   if (status) status.textContent = 'Submission failed — please print and contact the office';
 }
 
-function showSuccess(button) {
+function showSuccess(button, { warning } = {}) {
   submitted = true;
   localStorage.removeItem(STORAGE_KEY);
   const errorPanel = document.querySelector('#submit-error');
   if (errorPanel) errorPanel.hidden = true;
+  const warningElement = document.querySelector('#success-warning');
+  if (warningElement) {
+    warningElement.textContent = warning || '';
+    warningElement.hidden = !warning;
+  }
   const success = document.querySelector('#submit-success');
   if (success) {
     success.hidden = false;
@@ -997,7 +949,9 @@ async function sendPledge(form, payloadOverride) {
   try {
     const response = await fetchWithTimeout(submitUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }, 20000);
     if (!response.ok) throw await submissionError(response);
-    showSuccess(button);
+    let result = null;
+    try { result = await response.json(); } catch { /* Response had no JSON body. */ }
+    showSuccess(button, { warning: result?.warning });
   } catch (error) {
     button.disabled = false;
     button.textContent = 'Submit pledge ↗';

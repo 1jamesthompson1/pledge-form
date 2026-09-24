@@ -20,10 +20,22 @@ const requiredFields = [
 const MIN_FILL_TIME_MS = 5000;
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
-function isLikelySpam(pledge) {
-  if (pledge.website && String(pledge.website).trim()) return true;
+// Nothing is suppressed: a filled honeypot or a short/missing fill time is only
+// a hint. It is recorded on the audit row and flagged on the office email, but
+// the submission is still processed and emailed like any other, because silently
+// losing a real pledge costs far more than one extra email. Email failures
+// surface as a 502 — they are never hidden behind a fake success.
+function honeypotFilled(pledge) {
+  return Boolean(pledge.website && String(pledge.website).trim());
+}
+
+function spamReasons(pledge) {
+  const reasons = [];
+  if (honeypotFilled(pledge)) reasons.push('honeypot field was filled');
   const timeOnPageMs = Number(pledge.timeOnPageMs);
-  return !Number.isFinite(timeOnPageMs) || timeOnPageMs < MIN_FILL_TIME_MS;
+  if (!Number.isFinite(timeOnPageMs)) reasons.push('no time-on-page recorded');
+  else if (timeOnPageMs < MIN_FILL_TIME_MS) reasons.push(`completed in ${Math.round(timeOnPageMs)}ms (under ${MIN_FILL_TIME_MS}ms)`);
+  return reasons;
 }
 
 function validate(payload) {
@@ -64,11 +76,11 @@ function validate(payload) {
   return errors;
 }
 
-app.http('pledgeReceiver', {
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  route: 'pledges',
-  handler: async (request, context) => {
+// Exported so tests can invoke the handler directly, without the Functions host.
+export async function handlePledge(request, context, deps = {}) {
+    // Injection point for tests; defaults to the real implementations.
+    const notify = deps.sendPledgeNotification || sendPledgeNotification;
+    const confirm = deps.sendParentConfirmation || sendParentConfirmation;
     const submissionId = newSubmissionId();
     const partitionKey = partitionKeyFor();
 
@@ -143,6 +155,8 @@ app.http('pledgeReceiver', {
         dev: payload.dev === true || payload.dev === 'true',
       };
 
+      const reasons = spamReasons(pledge);
+      const suspect = reasons.length > 0;
       const versionMismatch = Boolean(pledge.formVersion) && pledge.formVersion !== backendFormVersion;
       const auditFields = {
         ParentName: pledge.parentName || '',
@@ -150,23 +164,16 @@ app.http('pledgeReceiver', {
         FormVersion: String(pledge.formVersion || ''),
         VersionMismatch: versionMismatch ? 'true' : 'false',
         Dev: pledge.dev ? 'true' : 'false',
+        Suspect: suspect ? 'true' : 'false',
+        SpamReason: reasons.join(', '),
       };
 
       if (versionMismatch) {
         context.warn(`Form version mismatch: submission is ${pledge.formVersion}, backend is ${backendFormVersion}`);
       }
 
-      if (isLikelySpam(pledge)) {
-        context.warn('Likely spam submission suppressed', {
-          timeOnPageMs: pledge.timeOnPageMs,
-          honeypotFilled: Boolean(pledge.website),
-        });
-        await updateAuditEntry({
-          submissionId,
-          partitionKey,
-          fields: { ...auditFields, Status: 'spam-suppressed', Errors: 'Likely spam submission suppressed' },
-        }).catch((error) => context.error('Failed to update audit table entry', error));
-        return { status: 200, jsonBody: { message: 'Pledge received' } };
+      if (suspect) {
+        context.warn(`Submission flagged as possible spam: ${reasons.join(', ')}`);
       }
 
       const errors = validate(form);
@@ -207,13 +214,18 @@ app.http('pledgeReceiver', {
           context.error('Failed to update audit table entry', error),
         );
 
+      let confirmationEmailSent = null;
+      let confirmationWarning = '';
+
       if (process.env.EMAIL_ENABLED === 'true') {
         try {
           const pdfBuffer = await buildPledgePdf(pledge);
-          await sendPledgeNotification(pledge, pdfBuffer, {
+          await notify(pledge, pdfBuffer, {
             formVersion: pledge.formVersion,
             backendFormVersion,
             mismatch: versionMismatch,
+            suspect,
+            suspectReason: reasons.join(', '),
           });
           context.log('Office notification email sent with PDF attached');
           await auditUpdate({ ...auditFields, EmailSent: 'true' });
@@ -235,11 +247,14 @@ app.http('pledgeReceiver', {
         // Test (?dev) confirmations are routed to EMAIL_DEV/EMAIL_ADMIN instead
         // of the sample parent address.
         try {
-          await sendParentConfirmation(pledge);
+          await confirm(pledge);
           context.log('Parent confirmation email sent');
+          confirmationEmailSent = true;
           await auditUpdate({ ...auditFields, EmailSent: 'true', ParentEmailSent: 'true' });
         } catch (error) {
           context.error('Failed to send parent confirmation email', error);
+          confirmationEmailSent = false;
+          confirmationWarning = `The school has received your pledge, but a confirmation email could not be sent to ${pledge.email}. Please check that your email address is correct, or contact the school office.`;
           await auditUpdate({
             ...auditFields,
             EmailSent: 'true',
@@ -251,10 +266,23 @@ app.http('pledgeReceiver', {
 
       context.log('Pledge processed successfully');
       await auditUpdate({ ...auditFields, Status: 'processed' });
-      return { status: 200, jsonBody: { message: 'Pledge received' } };
+      return {
+        status: 200,
+        jsonBody: {
+          message: 'Pledge received',
+          ...(confirmationEmailSent === null ? {} : { confirmationEmailSent }),
+          ...(confirmationWarning ? { warning: confirmationWarning } : {}),
+        },
+      };
     } catch (error) {
       context.error(`Unhandled error processing submission ${submissionId}`, error);
       return { status: 500, jsonBody: { error: 'Unexpected server error', submissionId } };
     }
-  },
+}
+
+app.http('pledgeReceiver', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'pledges',
+  handler: handlePledge,
 });

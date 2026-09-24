@@ -8,6 +8,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
+    "test": "npm run test:parity && npm run test:backend && npm run test:frontend",
+    "test:frontend": "vitest run",
+    "test:watch": "vitest",
+    "test:parity": "npm --prefix functions run test:parity",
+    "test:backend": "npm --prefix functions run test:backend",
+    "test:e2e": "npm --prefix functions run test:e2e",
     "prepare": "git config core.hooksPath .githooks || true",
     "check:function": "node --env-file-if-exists=.env scripts/check-function-version.js",
     "deploy:functions": "node --env-file-if-exists=.env scripts/deploy-functions.mjs",
@@ -18,8 +24,10 @@
     "@semantic-release/npm": "^13.1.5",
     "@vitejs/plugin-basic-ssl": "^2.0.0",
     "eslint": "^9.30.0",
+    "jsdom": "^29.1.1",
     "semantic-release": "^24.2.7",
     "vite": "^7.0.0",
-    "vite-plugin-singlefile": "^2.2.0"
+    "vite-plugin-singlefile": "^2.2.0",
+    "vitest": "^5.0.1"
   }
 }

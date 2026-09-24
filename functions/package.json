@@ -8,7 +8,10 @@
     "start": "func start",
     "sync:config": "node scripts/sync-config.js",
     "prestart": "npm run sync:config",
-    "test": "node scripts/pdf-smoke-test.js"
+    "test": "node scripts/pdf-smoke-test.js",
+    "test:parity": "node --test \"test/parity/**/*.test.js\"",
+    "test:backend": "npm run sync:config && node --test --test-concurrency=1 \"test/backend/**/*.test.js\"",
+    "test:e2e": "npm --prefix .. run build && npm run sync:config && node --test --test-concurrency=1 \"test/e2e/**/*.test.js\""
   },
   "dependencies": {
     "@azure/data-tables": "^13.3.2",
@@ -19,6 +22,7 @@
     "puppeteer-core": "^25.5.0"
   },
   "devDependencies": {
-    "azure-functions-core-tools": "^4.14.0"
+    "azure-functions-core-tools": "^4.14.0",
+    "azurite": "^3.37.0"
   }
 }

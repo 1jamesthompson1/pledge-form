@@ -12,6 +12,19 @@ npm install
 npm start
 ```
 
+With `EMAIL_SAVE_DIR` set (see the settings table below), the built emails are written to disk instead of being sent, so you can inspect exactly what the school and the parent would receive without any Graph credentials. Each message produces an envelope `.json` (from/to/replyTo/subject/attachments), a body `.txt` and, for the office email, the rendered PDF. Enable the email path locally with `EMAIL_ENABLED=true` and `EMAIL_SAVE_DIR=out/emails`.
+
+### Tests
+
+```sh
+npm test              # PDF smoke test (renders src/example-data.json)
+npm run test:parity   # generated config must match the frontend sources
+npm run test:backend  # handler integration tests (Azurite; starts one if needed)
+npm run test:e2e      # build the bundle, then drive it in Chromium end to end
+```
+
+`test:parity` and `test:backend` need the shared config synced, which `sync:config` does (and the generated files to exist). `test:e2e` builds the form bundle and starts its own Azurite, an HTTP wrapper around `handlePledge`, and a Chromium instance.
+
 The HTTP endpoint is available at:
 
 ```text
@@ -34,7 +47,7 @@ curl -X POST http://localhost:7071/api/pledges \
   }'
 ```
 
-The endpoint treats submissions without `timeOnPageMs` (or with a value under 5 seconds) as likely spam: it accepts them with a 200 response but does not send the notification email or run downstream actions.
+The endpoint treats a missing or sub-5-second `timeOnPageMs`, or a filled honeypot field, as a spam *hint* — never a reason to drop the submission: it is still archived, processed and emailed to the office, but the notification subject is prefixed `[POSSIBLE SPAM]` and the audit row records why (`Suspect`, `SpamReason`). Nothing is silently suppressed, so a genuine pledge is never lost; if the office email cannot be sent the endpoint returns 502.
 
 Also a health endpoint reports the pledge-form release the function was built with:
 
@@ -84,6 +97,7 @@ The app settings the function relies on are set by `infra/main.tf`; to change th
 | `SUBMISSIONS_CONTAINER` / `SUBMISSIONS_TABLE` | Storage container/table names created by Terraform |
 | `RETENTION_DAYS` | How long raw submissions and audit rows are kept before deletion (`retention_days` variable, default 730 = two years) |
 | `PDF_SAVE_DIR` | Local-only demo: directory to write a copy of the rendered pledge PDF (leave unset in Azure) |
+| `EMAIL_SAVE_DIR` | Local-only demo: write each built email (envelope `.json`, body `.txt` and any PDF attachment) to this directory instead of calling Microsoft Graph — no Entra credentials needed (leave unset in Azure) |
 
 ### Deploying a new version
 
@@ -111,13 +125,13 @@ Notes:
 
 ## Raw submission archive
 
-Every submission's raw JSON body is written to a private blob container (`pledge-submissions` by default) in the Function App's storage account **before any processing**, so no submission is ever lost — even spam-suppressed, malformed, or validation-failed submissions are archived. The write is synchronous: if the blob write fails the endpoint returns 502 so the sender knows to retry. Blob metadata records `receivedAt`, the client IP (`x-forwarded-for`) and the `Origin` header. Files are named `pledge-<timestamp>-<uuid>.json`.
+Every submission's raw JSON body is written to a private blob container (`pledge-submissions` by default) in the Function App's storage account **before any processing**, so no submission is ever lost — even spam-flagged, malformed, or validation-failed submissions are archived. The write is synchronous: if the blob write fails the endpoint returns 502 so the sender knows to retry. Blob metadata records `receivedAt`, the client IP (`x-forwarded-for`) and the `Origin` header. Files are named `pledge-<timestamp>-<uuid>.json`.
 
 Locally this requires an Azure Storage emulator: `local.settings.json` uses `UseDevelopmentStorage=true`, so run Azurite (`npm i -g azurite && azurite --silent`) before `npm start`, or set `AzureWebJobsStorage` to a real connection string.
 
 ### Audit table
 
-Every submission also gets a row in the `pledgeaudit` Table Storage table (created by the Terraform config). Columns: partition key = submission date, row key = submission ID, `BlobName` (link to the archived raw JSON), `ParentName`, `SubmittedAt`, `FormVersion` (the form release that submitted it), `Dev` (`true` for test submissions), `Status` (`received`, `spam-suppressed`, `validation-failed`, `email-failed`, `processed`, `invalid-json`), `EmailSent` (`true`/`false`), `ParentEmailSent` (`true`/`false`/empty), `EmailError`, `ParentEmailError` and `Errors`. Audit writes are best-effort — the blob archive is the source of truth, and an audit failure never blocks processing.
+Every submission also gets a row in the `pledgeaudit` Table Storage table (created by the Terraform config). Columns: partition key = submission date, row key = submission ID, `BlobName` (link to the archived raw JSON), `ParentName`, `SubmittedAt`, `FormVersion` (the form release that submitted it), `Dev` (`true` for test submissions), `Suspect` (`true` when a spam hint such as a fast fill time or a filled honeypot was detected), `SpamReason` (why it was flagged), `Status` (`received`, `validation-failed`, `email-failed`, `processed`, `invalid-json`), `EmailSent` (`true`/`false`), `ParentEmailSent` (`true`/`false`/empty), `EmailError`, `ParentEmailError` and `Errors`. Audit writes are best-effort — the blob archive is the source of truth, and an audit failure never blocks processing.
 
 ### Retention
 
@@ -140,11 +154,11 @@ All you provide is a licensed sender mailbox and the office address:
 
 The Function sends an email to the `EMAIL_ADMIN` school address, using the configured sender mailbox. A **PDF of the pledge is generated and attached** to that office email only (`src/pledgeRender.js`, headless Chromium) — the school sees the rendered form exactly as the parent filled it, including all children, amounts, custody arrangements, and signature. If `EMAIL_ADMIN` is unset, the send fails with an error and the endpoint returns 502.
 
-Only after the office email is sent does the Function send the parent/guardian a **separate plain-text confirmation** (`sendParentConfirmation`) that the pledge has been received for their children. The confirmation carries no PDF and no sensitive detail, and a failure to send it is recorded on the audit row (`ParentEmailSent: false`) but never fails the request — the office has already been notified. For test (`?dev`) submissions the confirmation is routed to `EMAIL_DEV` (falling back to `EMAIL_ADMIN`) with a `[TEST]` subject, so the sample parent address is never emailed while the flow stays testable end to end.
+Only after the office email is sent does the Function send the parent/guardian a **separate plain-text confirmation** (`sendParentConfirmation`) that the pledge has been received for their children. The confirmation carries no PDF and no sensitive detail. A failure to send it never fails the request — the office has already been notified — but it is not hidden: the audit row records `ParentEmailSent: false` and the error, and the success response carries `confirmationEmailSent: false` plus a `warning` that the form shows to the parent ("a confirmation email could not be sent to …"), so a mistyped address is surfaced on the screen rather than silently dropped. For test (`?dev`) submissions the confirmation is routed to `EMAIL_DEV` (falling back to `EMAIL_ADMIN`) with a `[TEST]` subject, so the sample parent address is never emailed while the flow stays testable end to end.
 
 ## Payload format
 
-The real form (`src/main.js`) submits `{ "form": {...}, "submittedAt": "...", "timeOnPageMs": 12345, "formVersion": "0.3.0", "dev": false, "startDate": "..." }`. `formVersion` is the form release baked into the bundle at build time; `dev` is `true` when the form was opened with `?dev` or built with `VITE_DEV=true`. Both are stored on the audit row (`FormVersion`, `Dev`), and the function logs a warning if `formVersion` does not match its own. The function also accepts flat payloads (form fields at top level) for simple curl testing. Submissions without `timeOnPageMs` or under 5 seconds, or with the honeypot field filled, are accepted with 200 but suppressed (no email).
+The real form (`src/main.js`) submits `{ "form": {...}, "submittedAt": "...", "timeOnPageMs": 12345, "formVersion": "0.3.0", "dev": false, "startDate": "..." }`. `formVersion` is the form release baked into the bundle at build time; `dev` is `true` when the form was opened with `?dev` or built with `VITE_DEV=true`. Both are stored on the audit row (`FormVersion`, `Dev`), and the function logs a warning if `formVersion` does not match its own. The function also accepts flat payloads (form fields at top level) for simple curl testing. A missing or sub-5-second `timeOnPageMs` is recorded on the audit row (`Suspect`, `SpamReason`) and the office notification is prefixed `[POSSIBLE SPAM]`, but the submission is still processed and emailed. A filled honeypot field is treated the same way — flagged, never suppressed.
 
 ## Cold starts
 
