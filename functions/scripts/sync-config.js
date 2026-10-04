@@ -33,17 +33,47 @@ try {
   commit = '';
 }
 
-// 1. Version: the form release this function build is designed to work with.
+// The built form advertises the version it was built from in a meta tag (see
+// vite.config.js). Read it back rather than trusting package.json, so the
+// version we report always describes the bundle that is actually rendered.
+function extractBundleVersion(html) {
+  const match = html.match(/<meta name="form-version" content="([^"]+)"\s*\/?>/i);
+  if (!match) {
+    throw new Error(
+      'The built form has no <meta name="form-version"> marker. '
+      + 'The build is stale or did not complete; re-run `npm run build` in the repo root.',
+    );
+  }
+  return match[1];
+}
+
 mkdirSync(targetDir, { recursive: true });
+
+// 1. Rebuild the form bundle from source. `dist/` is gitignored and was
+//    previously only rebuilt by hand, which let the backend keep rendering the
+//    previous release's bundle after a version bump. Building here makes the
+//    rendered form and the reported version impossible to desync.
+execSync('npm run build', { cwd: root, stdio: 'inherit' });
+const bundleSource = path.join(root, 'dist/index.html');
+const bundle = readFileSync(bundleSource, 'utf8');
+const bundleVersion = extractBundleVersion(bundle);
+if (bundleVersion !== rootPkg.version) {
+  throw new Error(
+    `The built form is version ${bundleVersion} but package.json is ${rootPkg.version}. `
+    + 'Refusing to sync a form that does not match the released version.',
+  );
+}
+
+// 2. Record the version of the bundle we are about to ship, not package.json.
 writeFileSync(
   path.join(targetDir, 'formVersion.js'),
-  `${banner('the root package.json', '// This records which pledge-form release this function build is designed to work with.')}`
-    + `export const formVersion = ${JSON.stringify(rootPkg.version)};\n`
+  `${banner('the built form bundle (dist/index.html)', '// This records the version of the form bundle this function renders into PDFs.')}`
+    + `export const formVersion = ${JSON.stringify(bundleVersion)};\n`
     + `export const formCommit = ${JSON.stringify(commit)};\n`,
   'utf8',
 );
 
-// Keep the function package in lockstep with the form release so there is one version number.
+// 3. Keep the function package in lockstep with the form release so there is one version number.
 const functionPkgPath = path.join(here, '../package.json');
 const functionPkg = JSON.parse(readFileSync(functionPkgPath, 'utf8'));
 if (functionPkg.version !== rootPkg.version) {
@@ -69,14 +99,13 @@ try {
   // No lockfile to sync.
 }
 
-// 2 & 3. Form pricing rules and form definition.
+// 3 & 4. Form pricing rules and form definition.
 syncModule('../../src/pledge-config.js', 'pledge-config.js', 'pledgeConfig.js');
 syncModule('../../src/form-definition.js', 'form-definition.js', 'formDefinition.js');
 
-// 4. The rendered form bundle, used to build the PDF (a straight copy, no banner).
-const bundleSource = path.join(root, 'dist/index.html');
+// 5. The rendered form bundle, used to build the PDF (a straight copy, no banner).
 const bundleTarget = path.join(targetDir, 'pledgeForm.html');
-writeFileSync(bundleTarget, readFileSync(bundleSource, 'utf8'), 'utf8');
-console.log(`Synced dist/index.html -> ${bundleTarget}`);
+writeFileSync(bundleTarget, bundle, 'utf8');
+console.log(`Synced dist/index.html (v${bundleVersion}) -> pledgeForm.html`);
 
-console.log(`Synced form version ${rootPkg.version}${commit ? ` (${commit})` : ''}`);
+console.log(`Synced form version ${bundleVersion}${commit ? ` (${commit})` : ''}`);

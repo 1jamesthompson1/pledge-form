@@ -16,6 +16,11 @@ async function importOrNull(specifier) {
   }
 }
 
+function bundleVersion(html) {
+  const match = html.match(/<meta name="form-version" content="([^"]+)"\s*\/?>/i);
+  return match ? match[1] : null;
+}
+
 test('backend pledgeConfig matches the frontend source', async () => {
   const front = await import(path.join(root, 'src/pledge-config.js'));
   const back = await importOrNull(path.join(functionsDir, 'src/pledgeConfig.js'));
@@ -45,20 +50,29 @@ test('backend formDefinition matches the frontend source', async () => {
   assert.equal(back.theirFacePhrase(1), front.theirFacePhrase(1));
 });
 
-test('backend formVersion matches the released package version', async () => {
+test('backend formVersion matches the form bundle it renders', async () => {
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
   const version = await importOrNull(path.join(functionsDir, 'src/formVersion.js'));
   assert.ok(version, 'functions/src/formVersion.js is missing — run `npm run sync:config` in functions/');
-  assert.equal(version.formVersion, pkg.version);
+
+  const copied = path.join(functionsDir, 'src/pledgeForm.html');
+  assert.ok(existsSync(copied), 'functions/src/pledgeForm.html is missing — run `npm run sync:config` in functions/');
+  const rendered = bundleVersion(readFileSync(copied, 'utf8'));
+  assert.ok(rendered, 'functions/src/pledgeForm.html has no form-version marker — run `npm run sync:config` in functions/');
+
+  assert.equal(version.formVersion, rendered, 'reported formVersion must equal the version of the rendered bundle');
+  assert.equal(version.formVersion, pkg.version, 'rendered form must match the released package version');
 });
 
 test('backend pledgeForm bundle matches the built form', async () => {
+  const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
   const built = path.join(root, 'dist/index.html');
   const copied = path.join(functionsDir, 'src/pledgeForm.html');
   if (!existsSync(built)) {
     // A fresh checkout has no dist build; the PDF smoke test and CI cover this.
     return;
   }
+  assert.equal(bundleVersion(readFileSync(built, 'utf8')), pkg.version, 'the built form must carry the released version');
   assert.ok(existsSync(copied), 'functions/src/pledgeForm.html is missing — run `npm run sync:config` in functions/');
   assert.equal(readFileSync(copied, 'utf8'), readFileSync(built, 'utf8'));
 });

@@ -64,8 +64,6 @@ jobs:
           cache-dependency-path: functions/package-lock.json
       - name: Install root dependencies
         run: npm ci
-      - name: Build form bundle
-        run: npm run build
       - name: Install functions dependencies
         working-directory: functions
         run: npm ci

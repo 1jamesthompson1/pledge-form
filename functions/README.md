@@ -57,12 +57,14 @@ curl -X GET http://localhost:7071/api/health
 ```
 
 ```json
-{ "status": "ok", "formVersion": "0.3.0", "formCommit": "1bf3ce0", "formYear": 2027, "emailEnabled": true }
+{ "status": "ok", "formVersion": "0.3.0", "renderedFormVersion": "0.3.0", "formCommit": "1bf3ce0", "formYear": 2027, "emailEnabled": true }
 ```
+
+`formVersion` is the version reported by the function (read from the form bundle, see below) and `renderedFormVersion` is the version read back out of the HTML bundle at request time. They are always equal; if they ever diverge the deployment is broken, and `npm run check:function` fails.
 
 ### Shared form config (pricing, form definition and form bundle)
 
-The pricing rules used by the PDF (`src/pledgeConfig.js`), the form definition (`src/formDefinition.js`), the form version (`src/formVersion.js`) and the rendered form HTML (`src/pledgeForm.html`) are all **generated** from the repo-root sources by a single script, `scripts/sync-config.js`: `pledge-config.js` and `form-definition.js` from `src/`, the version from the root `package.json`, and the bundle from the built `dist/index.html`. The sync runs automatically on `npm start` and via `npm run sync:config` — never edit the generated copies directly: `src/pledge-config.js`, `src/form-definition.js` and `dist/index.html` are the single sources of truth.
+The pricing rules used by the PDF (`src/pledgeConfig.js`), the form definition (`src/formDefinition.js`), the form version (`src/formVersion.js`) and the rendered form HTML (`src/pledgeForm.html`) are all **generated** from the repo-root sources by a single script, `scripts/sync-config.js`: `pledge-config.js` and `form-definition.js` from `src/`, and the bundle from the freshly built `dist/index.html`, which also carries the version it was built from in a `<meta name="form-version">` tag. The sync **rebuilds the bundle first** (`npm run build` in the repo root) and records that bundle's own version as `formVersion`, so the version the function reports and the form it renders into the PDF can never drift apart. The sync runs automatically on `npm start` and via `npm run sync:config` — never edit the generated copies directly: `src/pledge-config.js`, `src/form-definition.js` and `dist/index.html` are the single sources of truth.
 
 `npm test` runs `scripts/pdf-smoke-test.js`, which renders a pledge PDF from the committed `src/example-data.json` and fails if the form's payload no longer renders. The `verify-functions` job in the GitHub `release.yml` workflow runs the same sync + smoke test when a release tag is pushed, so a change that breaks the PDF fails CI before the release assets are published.
 
@@ -101,12 +103,12 @@ The app settings the function relies on are set by `infra/main.tf`; to change th
 
 ### Deploying a new version
 
-The shared files (`src/pledgeConfig.js`, `src/formDefinition.js`, `src/formVersion.js` and `src/pledgeForm.html`) are **gitignored** and generated from the repo root — a fresh checkout will not contain them. Always regenerate them and run the smoke test before publishing:
+The shared files (`src/pledgeConfig.js`, `src/formDefinition.js`, `src/formVersion.js` and `src/pledgeForm.html`) are **gitignored** and generated from the repo root — a fresh checkout will not contain them. `sync:config` rebuilds the form bundle from source and derives `formVersion` from it, so always regenerate them and run the smoke test before publishing:
 
 ```sh
 cd functions
 npm ci
-npm run sync:config   # regenerates pledgeConfig.js, formDefinition.js, formVersion.js and pledgeForm.html
+npm run sync:config   # rebuilds dist/, then regenerates pledgeConfig.js, formDefinition.js, formVersion.js and pledgeForm.html
 npm test              # renders a pledge PDF from src/example-data.json
 npx func azure functionapp publish <your-function-app-name>
 ```

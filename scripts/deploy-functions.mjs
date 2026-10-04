@@ -40,7 +40,8 @@ for (let attempt = 0; attempt < 30; attempt += 1) {
     const response = await fetch(healthUrl);
     if (response.ok) {
       const health = await response.json();
-      if (health.formCommit === expectedCommit) { live = true; break; }
+      const versionsAligned = !health.renderedFormVersion || health.renderedFormVersion === health.formVersion;
+      if (health.formCommit === expectedCommit && versionsAligned) { live = true; break; }
     }
   } catch {
     // Not responding yet; keep waiting.
@@ -48,7 +49,10 @@ for (let attempt = 0; attempt < 30; attempt += 1) {
   await new Promise((resolve) => setTimeout(resolve, 2000));
 }
 if (!live) {
-  console.error(`Published, but ${healthUrl} has not reported commit ${expectedCommit} yet.`);
+  console.error(
+    `Published, but ${healthUrl} has not reported commit ${expectedCommit} `
+      + 'with a matching rendered form version yet.',
+  );
   process.exit(1);
 }
 

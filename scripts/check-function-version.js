@@ -28,6 +28,15 @@ if (health.formCommit !== expectedCommit) {
   process.exit(1);
 }
 
+if (health.renderedFormVersion && health.renderedFormVersion !== health.formVersion) {
+  console.error(
+    `FAIL: the deployed function reports formVersion ${health.formVersion} but renders form `
+      + `version ${health.renderedFormVersion}. The PDF bundle is out of sync; redeploy with \`npm run deploy:functions\`.`,
+  );
+  process.exit(1);
+}
+
 console.log(
-  `OK: deployed function is at the latest commit ${expectedCommit} (formVersion ${health.formVersion || 'unknown'}).`,
+  `OK: deployed function is at the latest commit ${expectedCommit} `
+    + `(formVersion ${health.formVersion || 'unknown'}, rendered ${health.renderedFormVersion || 'unknown'}).`,
 );
