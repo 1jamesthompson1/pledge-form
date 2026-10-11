@@ -90,8 +90,7 @@ export const consentGroups = {
   photos: [
     "{pronoun} give consent for {possessive} {child} to be photographed at kindergarten or school, including during EOTC events (walks, excursions, etc.).",
     "{pronoun} give consent for photographs of {possessive} {child} to be published on the school's website or in the school newsletter. When names are used in the text, only first names will be used.",
-    "{pronoun} give consent for photographs of {possessive} {child} to be used on the school's social media platforms (e.g., Instagram and Facebook), where {possessive} {child} may appear in the background or from the side and {theirFace} not recognisable. No names will be used.",
-    "{pronoun} give consent for photographs of {possessive} {child} to be used on the school's social media platforms (e.g., Instagram and Facebook), where {possessive} {child} may be clearly identifiable and {theirFace} visible. No names will be used.",
+    "{pronoun} give consent for photographs of {possessive} children to be used on the school's social media platforms e.g., Instagram and Facebook, (no names will be used).",
   ],
 };
 
@@ -214,6 +213,7 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   custodyAddAnother: 'Add another custodial arrangement',
   custodyRemove: 'Remove arrangement',
   privacyStatementTitle: 'Privacy statement',
+  photosBlurb: 'Please note: We will respect the photo permission you select above. However, children may occasionally appear incidentally in the background of photographs or in images where they cannot reasonably be identified, for example where they are at a distance, facing away, blurred or otherwise not recognisable.',
   photosWithdrawNote: 'You can change or withdraw your photo consent at any time by contacting the school office.',
   privacyNotice: 'We handle your information as described in our privacy statement. By submitting this form, you confirm you have read and agree to it.',
   anythingElse: 'Anything else to add?',

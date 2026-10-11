@@ -465,6 +465,7 @@ function render() {
         <section class="card">${sectionHead('08')}
           <p class="muted" data-template="${encodeURIComponent(labels.photosIntro)}">${t(labels.photosIntro)}</p>
           ${checklist('photos')}
+          <p class="muted" data-template="${encodeURIComponent(labels.photosBlurb)}">${t(labels.photosBlurb)}</p>
           <p class="muted" data-template="${encodeURIComponent(labels.photosWithdrawNote)}">${t(labels.photosWithdrawNote)}</p>
         </section>
 
