@@ -77,12 +77,11 @@ export const consentGroups = {
     "{pronoun} will inform {schoolName} as soon as possible of any changes in the medical circumstances of {possessive} {child}.",
     "If prescribed medication needs to be administered, a designated adult will be assigned to do this. {pronoun} will ensure that prescribed medication is clearly labelled, securely fastened and handed to the office or their kindergarten teacher with instructions on its administration. This includes asthma.",
     "Any medical cost not covered by ACC or a community service card will be paid by {objectPronoun}."
-    
   ],
   conduct: [
     'Treat others with respect and uphold their right to privacy.',
     'Work together in partnership with staff for the benefit of all students.',
-    'Respect the special character of the school',
+    'Respect the special character of the school.',
     'Use digital technology and social media safely and responsibly whilst respecting the privacy of others (e.g. sharing images).',
     'Understand that the kindergarten and school have a process to resolve concerns and complaints, which can be found on the school website.',
     'Act in accordance with school rules, procedures, and legal obligations.',
@@ -90,7 +89,7 @@ export const consentGroups = {
   photos: [
     "{pronoun} give consent for {possessive} {child} to be photographed at kindergarten or school, including during EOTC events (walks, excursions, etc.).",
     "{pronoun} give consent for photographs of {possessive} {child} to be published on the school's website or in the school newsletter. When names are used in the text, only first names will be used.",
-    "{pronoun} give consent for photographs of {possessive} children to be used on the school's social media platforms e.g., Instagram and Facebook, no names will be used.",
+    "{pronoun} give consent for photographs of {possessive} {child} to be used on the school's social media platforms (e.g. Instagram and Facebook). No names will be used.",
   ],
 };
 
@@ -103,12 +102,12 @@ export const eotcStatementsSchool = [
 
 export const eotcStatementsKindergarten = [
   '{pronoun} give permission to visit the listed locations as part of our regular excursions.',
-  '{pronoun} understand that there are risks associated with involvement in the kindergarten EOTC events and that while {pronounLower} minimize the risks, they cannot all be eliminated.',
+  '{pronoun} understand that there are risks associated with involvement in the kindergarten EOTC events and that while {pronounLower} minimise the risks, they cannot all be eliminated.',
   '{pronoun} understand that kindergarten identifies any foreseeable risks or hazards and implements correct management procedures to eliminate or minimise those risks.',
   '{pronoun} acknowledge that to gain a better understanding of the risks involved {pronounLower} can read the available RAMS for each of the destinations (available on the website, in the office, and on noticeboards onsite).',
-  '{pronoun} confirm {pronounLower} understand the Ratio: Kaiako/ Ākonga 2:16',
-  '{pronoun} confirm {pronounLower} understand the method of Transport: Walking',
-  'Planned Route: Please see the individual routes for each walk on the RAMs',
+  '{pronoun} confirm {pronounLower} understand the ratio: Kaiako/Ākonga 2:16.',
+  '{pronoun} confirm {pronounLower} understand the method of transport: Walking.',
+  'Planned route: Please see the individual routes for each walk on the RAMS.',
 ];
 
 export const eotcWalksKindergarten = [
@@ -140,7 +139,7 @@ export const labels = {
 eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low risk events which occur during the course of a Kindergarten or School day and are planned to conclude prior to 2:45pm.',
   eotcWalksIntro: 'Typical events of this nature are walks to:',
   eotcWalks: [
-    'Nearby parks and places, the beach, the community orchard',
+    'nearby parks and places, the beach, the community orchard',
     'the farm across the road from school and land surrounding the school',
     'the school grounds',
   ],
@@ -203,7 +202,7 @@ eotcIntro: 'This Education Outside The Classroom (EOTC) form is to cover low ris
   emergencyPhone: 'Phone number',
   emergencyRelationship: 'Relationship to child',
   emergencyComments: 'Comments about emergency contacts',
-  custodyToggle: '{possessive} children live across more than one household or have special custodial arrangements.',
+  custodyToggle: '{possessive} {child} may live across more than one household, or have special custodial arrangements.',
   custodyArrangement: 'Custodial arrangement {n}',
   custodyChildrenAffected: 'Select the children affected',
   custodyLivingArrangements: 'What is the regular rhythm for where your children will be living?',

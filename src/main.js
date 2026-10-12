@@ -390,7 +390,7 @@ function render() {
     <div class="shell">
       <header class="hero">
         <h1>Special Character Pledge Form <em>${pledgeRules.year}</em></h1>
-        <p class="intro">This is a digital version of the Special Character Pledge Form, replacing previous years paper copy.</p>
+        <p class="intro">This is a digital version of the Special Character Pledge Form, replacing previous years' paper copy.</p>
         ${pledgeRules.returnBy && !validStartDate ? `<p class="return-by">${t(labels.returnByTop, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}
         ${isDraft ? '<p class="draft-warning"><strong>Draft form:</strong> This form is currently in development and not yet live. Do not submit real pledges until this notice is removed.</p>' : ''}
         <div class="status" role="status" aria-live="polite"><span class="status-dot"></span><span id="save-status">Ready to begin</span></div>
