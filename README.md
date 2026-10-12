@@ -65,6 +65,8 @@ Notes:
 
 ## Runtime configuration
 
+This is automatically included in the script code above
+
 No endpoint or contact email is hardcoded. Before the bundled script runs, set both values on `window.PLEDGE_CONFIG`. The contact email is optional — without it the "Questions? Contact the office" footer link is omitted. The `submitUrl` is required for submissions to work. An optional `draft: true` flag shows the "Draft form" warning banner across the top of the form; leave it unset for the live form:
 
 ```html
