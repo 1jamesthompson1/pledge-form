@@ -132,7 +132,7 @@ export const labels = {
   medicalIntro: '{pronoun} agree that:',
   medicalInfoIntro: 'Please note any medical conditions or health information for each child.',
   medicalInfoOutro: 'It is very important that this information is kept up to date throughout the year. Please contact the school office if anything changes.',
-  emergencyIntro: 'Please provide two people the school can contact in an emergency.',
+  emergencyIntro: 'Please provide two people the school can contact in an emergency who are not the parents / guardians.',
   emergencyOutro: 'Please keep these details up to date throughout the year by contacting the school office.',
   medicalInfoPlaceholder: 'Any medical conditions, allergies or other health information',
   photosIntro: 'At times we capture moments of learning, play and community life at {schoolName}. These images help us share the richness of the programme with Whānau. Please let us know your preferences for how your {child}\'s photos may be used.',
