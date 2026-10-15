@@ -19,6 +19,16 @@ function run(command, args, cwd) {
   }
 }
 
+// Refuse to deploy anything that isn't committed: sync-config builds the form from
+// the working tree, so a dirty tree would ship uncommitted form changes while
+// reporting the old commit and slipping past the commit check.
+const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim();
+if (dirty) {
+  console.error('ERROR: refusing to deploy from a dirty working tree.');
+  console.error(dirty);
+  process.exit(1);
+}
+
 // `func publish` authenticates through the Azure CLI; fail early with a clear message.
 const auth = spawnSync('az', ['account', 'get-access-token', '--resource', 'https://management.core.windows.net/', '-o', 'none'], { stdio: 'ignore' });
 if (auth.error || auth.status !== 0) {
