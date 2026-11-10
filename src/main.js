@@ -17,6 +17,7 @@ let submitted = false;
 const contactEmail = window.PLEDGE_CONFIG?.contactEmail;
 const trustAdministrator = trustAdministratorPhrase(contactEmail);
 const submitUrl = window.PLEDGE_CONFIG?.submitUrl;
+const formUrl = window.PLEDGE_CONFIG?.formUrl;
 const formVersion = typeof __FORM_VERSION__ === 'string' ? __FORM_VERSION__ : '';
 const RELEASE_URL = 'https://github.com/1jamesthompson1/pledge-form/releases';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -346,6 +347,10 @@ function updateSeparateFamilySection() {
   refreshTemplates();
 }
 
+function adminCountOptions(selected) {
+  return Array.from({ length: pledgeRules.maxChildrenPerGroup + 1 }, (_, i) => `<option value="${i}"${i === selected ? ' selected' : ''}>${i}</option>`).join('');
+}
+
 function adminPanelHTML() {
   return `
     <section class="card admin-panel" aria-label="Admin tools">
@@ -377,9 +382,14 @@ function adminPanelHTML() {
       </div>
       <div class="admin-tool">
         <h3>Blank hand-fill form</h3>
-        <p class="muted">Print a blank form with 3 school children and 2 Kindergarten / Nursery children, ready to be completed by hand. This clears the answers currently in the form.</p>
+        <p class="muted">Choose how many children the printed form should include, and add their names if you have them. The names will appear throughout the printed form. This clears the answers currently in the form.</p>
+        <div class="admin-print-counts">
+          <label>School children<select id="admin-print-school-count" aria-label="Number of school children to print">${adminCountOptions(3)}</select></label>
+          <label>Kindergarten / Nursery children<select id="admin-print-kindergarten-count" aria-label="Number of Kindergarten / Nursery children to print">${adminCountOptions(2)}</select></label>
+        </div>
+        <div id="admin-print-names" class="admin-print-names"></div>
         <div class="admin-row">
-          <button type="button" id="admin-print-blank">Print blank form (3 school, 2 kindergarten)</button>
+          <button type="button" id="admin-print-blank">Print blank form</button>
         </div>
       </div>
     </section>`;
@@ -391,6 +401,7 @@ function render() {
       <header class="hero">
         <h1>Special Character Pledge Form <em>${pledgeRules.year}</em></h1>
         <p class="intro">This is a digital version of the Special Character Pledge Form, replacing previous years' paper copy.</p>
+        <p class="print-note" id="print-note" hidden>This is a printed version of a digital form. Please see the ${formUrl ? `<a href="${escapeHtml(formUrl)}" target="_blank" rel="noopener">original digital copy</a>` : 'original digital copy'} for extra information if wanted.</p>
         ${pledgeRules.returnBy && !validStartDate ? `<p class="return-by">${t(labels.returnByTop, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}
         ${isDraft ? '<p class="draft-warning"><strong>Draft form:</strong> This form is currently in development and not yet live. Do not submit real pledges until this notice is removed.</p>' : ''}
         <div class="status" role="status" aria-live="polite"><span class="status-dot"></span><span id="save-status">Ready to begin</span></div>
@@ -478,7 +489,7 @@ function render() {
           </div>
         </section>
 
-        <section class="card">${sectionHead('10')}
+        <section class="card pledge-card">${sectionHead('10')}
           <div class="split-note" id="split-payment-note" hidden><strong>${labels.splitPaymentTitle}</strong><p>${labels.splitPaymentNote}</p></div>
           <p class="muted">The contributions are donation-based. Recommended amounts are a guideline, not fees. Please contact ${trustAdministrator} if you need to discuss financial hardship.<br><br>As these are donations you may be able to claim back up to 33% of the amount as a donation tax credit from IRD.</p>
           <p class="muted" data-template="${encodeURIComponent(labels.pledgeOtherCostsNote)}">${t(labels.pledgeOtherCostsNote)}</p>
@@ -487,11 +498,11 @@ function render() {
           <p class="muted" data-template="${encodeURIComponent(labels.pledgeIntro)}">${t(labels.pledgeIntro)}</p>
           ${expandable(labels.pledgeInfoTitle, labels.pledgeInfoBody)}
           <p class="rule-note"><strong>${t(labels.recommendedAmountsTitle)}</strong><br />School: ${pledgeRules.school.note}<br/><br>Kindergarten: ${pledgeRules.kindergarten.note}</p>
-          <div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="pledge-rows"></div></div>${field(labels.supplementaryDonation, 'supplementaryDonation', 'number', { min: 0 })}<h3 class="amounts-heading">${labels.disbursementAmounts}</h3>
+          <div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="pledge-rows"></div></div>${field(labels.supplementaryDonation, 'supplementaryDonation', 'number', { min: 0 })}<div class="disbursement-block"><h3 class="amounts-heading">${labels.disbursementAmounts}</h3>
           <p class="muted" data-template="${encodeURIComponent(labels.disbursementIntro)}">${t(labels.disbursementIntro)}</p>
           ${expandable(labels.disbursementInfoTitle, labels.disbursementInfoBody)}
-          <div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="disbursement-rows"></div></div>
-           <h3 class="amounts-heading">${t(labels.paymentHeading)}</h3>
+          <div class="amount-table"><div class="amount-head"><span>${labels.student}</span><span>${labels.recommended}</span><span>${labels.agreedAmount}</span></div><div id="disbursement-rows"></div></div></div>
+           <h3 class="amounts-heading payment-heading">${t(labels.paymentHeading)}</h3>
            <input type="hidden" name="totalPledge" /><div class="price-summary total-summary" aria-live="polite"><div class="total-summary-title">${t(labels.totalPledgeHeading)}</div><div><span>${t(labels.perYear)}</span><strong id="year-total">$0.00</strong></div><div><span>${t(labels.perTerm)}</span><strong id="term-total">$0.00</strong><small id="term-total-note">Total divided by ${pledgeRules.termsPerYear} terms</small></div><div><span>${t(labels.perWeek)}</span><strong id="week-total">$0.00</strong><small id="week-total-note">Total divided by ${pledgeRules.schoolYearWeeks} weeks of the school year</small></div></div>
 <fieldset><legend>${labels.paymentPlan}</legend><p class="muted" data-template="${encodeURIComponent(labels.paymentPlanNote)}">${t(labels.paymentPlanNote)}</p>${paymentPlanOptions.map((option) => `<label class="check"><input type="radio" name="paymentPlan" value="${option.label}" required /> <span>${option.label} <em class="plan-price" data-plan="${option.key}"></em></span></label>`).join('')}</fieldset>
            ${field(labels.pledgeComments, 'pledgeComments', 'textarea')}
@@ -505,7 +516,7 @@ function render() {
           <label class="honeypot" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
           <div class="grid two">${field(labels.signature, 'signature', 'text', { required: true })}<div id="other-parent-signature" hidden>${field(labels.otherParentSignature, 'otherParentSignature', 'text', { required: true })}</div>${field(labels.signatureDate, 'signatureDate', 'date', { required: true })}</div>
           ${expandable(labels.privacyStatementTitle, privacyStatementHtml, { id: 'privacy-statement' })}
-          <p class="muted">${t(labels.privacyNotice)}</p>
+          <p class="muted privacy-notice">${t(labels.privacyNotice)}</p>
           ${submitUrl ? '' : `<div class="submit-error" role="alert"><h3>This form is not connected</h3><p>The submission service has not been configured, so this form can’t be submitted from this page. Please print this form and email it to the school office${contactEmail ? ` at <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}.</p></div>`}
           <div id="submit-error" class="submit-error" hidden role="alert">
             <h3>We couldn’t submit your pledge</h3>
@@ -518,7 +529,7 @@ function render() {
           <p class="fine-print">Submissions are sent securely to the school’s configured service.</p>
         </section>
       </form>
-      <footer>${pledgeRules.returnBy && !validStartDate ? `<p class="return-by reminder">${t(labels.returnByBottom, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}<p><a href="#privacy-statement">Privacy statement</a></p>${formVersion ? `<p class="form-version">Version <a href="${RELEASE_URL}/tag/v${formVersion}" target="_blank" rel="noopener">${formVersion}</a></p>` : ''}</footer>
+      <footer>${pledgeRules.returnBy && !validStartDate ? `<p class="return-by reminder">${t(labels.returnByBottom, { date: formatLongDateOrdinal(pledgeRules.returnBy) })}</p>` : ''}${contactEmail ? `Questions?&nbsp;&nbsp;&nbsp;Contact <a href="mailto:${contactEmail}">${contactEmail}</a>` : ''}<p class="privacy-link"><a href="#privacy-statement">Privacy statement</a></p>${formVersion ? `<p class="form-version">Version <a href="${RELEASE_URL}/tag/v${formVersion}" target="_blank" rel="noopener">${formVersion}</a></p>` : ''}<p class="return-to-office">Please return this form to the school office.</p></footer>
     </div>`;
 }
 
@@ -874,27 +885,158 @@ function clearFormValues() {
   });
 }
 
+function adminPrintCounts() {
+  return {
+    school: Number(document.querySelector('#admin-print-school-count')?.value || 0),
+    kindergarten: Number(document.querySelector('#admin-print-kindergarten-count')?.value || 0),
+  };
+}
+
+function renderAdminPrintNames() {
+  const container = document.querySelector('#admin-print-names');
+  if (!container) return;
+  const counts = adminPrintCounts();
+  const existing = {};
+  container.querySelectorAll('[data-print-name]').forEach((input) => {
+    existing[input.dataset.printName] = input.value;
+  });
+  const group = (kind, count) => {
+    if (!count) return '';
+    return `<div class="admin-print-name-group"><strong>${kind === 'school' ? labels.schoolChildren : labels.kindergartenChildren}</strong>${Array.from({ length: count }, (_, index) => {
+      const key = `${kind}${index + 1}`;
+      const childLabel = t(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n: index + 1 });
+      return `<label><span class="field-label">${childLabel} name</span><input type="text" data-print-name="${key}" value="${escapeHtml(existing[key] || '')}" /></label>`;
+    }).join('')}</div>`;
+  };
+  container.innerHTML = `${group('school', counts.school)}${group('kindergarten', counts.kindergarten)}`;
+}
+
+function adminPrintNames() {
+  const counts = adminPrintCounts();
+  const namesFor = (kind, count) => Array.from({ length: count }, (_, index) =>
+    document.querySelector(`#admin-print-names [data-print-name="${kind}${index + 1}"]`)?.value.trim() || '');
+  return {
+    school: namesFor('school', counts.school),
+    kindergarten: namesFor('kindergarten', counts.kindergarten),
+  };
+}
+
+function setBlankPrintMode(enabled) {
+  document.body.classList.toggle('print-blank', enabled);
+  const note = document.querySelector('#print-note');
+  if (note) note.hidden = !enabled;
+  const pageStyleId = 'blank-print-page-margins';
+  const existingPageStyle = document.getElementById(pageStyleId);
+  if (enabled) {
+    if (!existingPageStyle) {
+      const style = document.createElement('style');
+      style.id = pageStyleId;
+      style.textContent = '@page { margin-top: 16mm; margin-bottom: 16mm; }';
+      document.head.appendChild(style);
+    }
+    document.querySelectorAll('#pledge-form textarea[placeholder]').forEach((element) => {
+      element.dataset.printPlaceholder = element.getAttribute('placeholder');
+      element.removeAttribute('placeholder');
+    });
+  } else {
+    if (existingPageStyle) existingPageStyle.remove();
+    document.querySelectorAll('#pledge-form textarea[data-print-placeholder]').forEach((element) => {
+      element.setAttribute('placeholder', element.dataset.printPlaceholder);
+      delete element.dataset.printPlaceholder;
+    });
+  }
+}
+
+function stageBlankPrintPledgePages() {
+  const pledgeCard = document.querySelector('.pledge-card');
+  const disbursement = pledgeCard?.querySelector('.disbursement-block');
+  const paymentHeading = pledgeCard?.querySelector('.payment-heading');
+  if (!pledgeCard || !disbursement || !paymentHeading) return null;
+  const children = [...pledgeCard.children];
+  const disbursementIndex = children.indexOf(disbursement);
+  const paymentIndex = children.indexOf(paymentHeading);
+  if (disbursementIndex < 0 || paymentIndex <= disbursementIndex) return null;
+
+  const disbursementNodes = children.slice(disbursementIndex, paymentIndex);
+  const paymentNodes = children.slice(paymentIndex);
+  const disbursementCard = document.createElement('section');
+  disbursementCard.className = 'card print-subcard disbursement-card';
+  const paymentCard = document.createElement('section');
+  paymentCard.className = 'card print-subcard payment-card';
+  disbursementNodes.forEach((node) => disbursementCard.appendChild(node));
+  paymentNodes.forEach((node) => paymentCard.appendChild(node));
+  pledgeCard.after(disbursementCard);
+  disbursementCard.after(paymentCard);
+
+  return () => {
+    disbursementNodes.forEach((node) => pledgeCard.appendChild(node));
+    paymentNodes.forEach((node) => pledgeCard.appendChild(node));
+    disbursementCard.remove();
+    paymentCard.remove();
+  };
+}
+
+function stageBlankPrintFinalPage() {
+  const form = document.querySelector('#pledge-form');
+  const shell = document.querySelector('.shell');
+  const signCard = form?.querySelector('.sign-card');
+  const footerElement = shell?.querySelector('footer');
+  if (!form || !shell || !signCard || !footerElement) return null;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'print-final';
+  shell.appendChild(wrapper);
+  wrapper.appendChild(signCard);
+  wrapper.appendChild(footerElement);
+  return () => {
+    form.appendChild(signCard);
+    shell.appendChild(footerElement);
+    wrapper.remove();
+  };
+}
+
 function printBlankForm() {
   const form = document.querySelector('#pledge-form');
   if (!form) return;
+  const printNames = adminPrintNames();
   clearFormValues();
-  form.querySelector('[name="schoolChildCount"]').value = '3';
-  form.querySelector('[name="kindergartenChildCount"]').value = '2';
+  form.querySelector('[name="schoolChildCount"]').value = String(printNames.school.length);
+  form.querySelector('[name="kindergartenChildCount"]').value = String(printNames.kindergarten.length);
   dynamicChildren();
+  const printChildren = [
+    ...printNames.school.map((name, index) => ({ kind: 'school', number: index + 1, name })),
+    ...printNames.kindergarten.map((name, index) => ({ kind: 'kindergarten', number: index + 1, name })),
+  ];
+  // Put the names from the print setup into the form so every section uses them.
+  printChildren.forEach(({ kind, number, name }) => {
+    const input = form.querySelector(`[name="${kind}${number}Name"]`);
+    if (input) input.value = name;
+  });
+  syncLinkedNames();
+  // When a name was left blank, label the row by its position rather than "Unnamed child".
+  printChildren.filter(({ name }) => !name).forEach(({ kind, number }) => {
+    const fallback = t(kind === 'school' ? labels.schoolChild : labels.kindergartenChild, { n: number });
+    document.querySelectorAll(`[data-source="${kind}${number}Name"]`).forEach((element) => { element.textContent = fallback; });
+  });
   // Blank the class / age / days-per-week dropdowns for hand-filling.
   form.querySelectorAll('#school-children select, #kindergarten-children select').forEach((select) => { select.selectedIndex = -1; });
-  // Keep the Recommended column but leave the agreed amounts blank.
+  // Keep the amount entry rows but leave the agreed amounts blank.
   form.querySelectorAll('input[name$="Amount"], input[name$="Disbursement"], [name="supplementaryDonation"]').forEach((element) => { element.value = ''; });
-  // The split-parent section only belongs to the digital form.
+  // Keep the family-type choice and other-parent details for hand-filling.
   const familyType = form.querySelector('.family-type');
   const familyTypeWasHidden = familyType ? familyType.hidden : true;
-  [
-    familyType,
-    form.querySelector('[name="otherParentName"]')?.closest('label'),
-    form.querySelector('[name="otherParentEmail"]')?.closest('label'),
-    document.querySelector('#other-parent-signature'),
-    document.querySelector('#split-payment-note'),
-  ].filter(Boolean).forEach((element) => { element.hidden = true; });
+  if (familyType) familyType.hidden = false;
+  [form.querySelector('[name="otherParentName"]'), form.querySelector('[name="otherParentEmail"]')]
+    .filter(Boolean)
+    .forEach((input) => {
+      const label = input.closest('label');
+      if (label) label.hidden = false;
+      input.disabled = false;
+      input.required = false;
+    });
+  const otherParentSignature = document.querySelector('#other-parent-signature');
+  if (otherParentSignature) otherParentSignature.hidden = false;
+  const splitPaymentNote = document.querySelector('#split-payment-note');
+  if (splitPaymentNote) splitPaymentNote.hidden = true;
   // Show one custodial arrangement for hand-filling, but print the toggle unticked.
   const custodyToggle = form.querySelector('[name="custodyApplies"]');
   const custodyCount = form.querySelector('[name="custodyArrangementCount"]');
@@ -906,7 +1048,14 @@ function printBlankForm() {
     const element = document.querySelector(selector);
     if (element) element.textContent = '';
   });
+  form.querySelectorAll('[data-plan]').forEach((element) => { element.textContent = ''; });
+  const restorePledgePages = stageBlankPrintPledgePages();
+  const restoreFinalPage = stageBlankPrintFinalPage();
+  setBlankPrintMode(true);
   printForm(() => {
+    setBlankPrintMode(false);
+    if (restorePledgePages) restorePledgePages();
+    if (restoreFinalPage) restoreFinalPage();
     if (familyType) familyType.hidden = familyTypeWasHidden;
     updateSeparateFamilySection();
   });
@@ -1127,6 +1276,9 @@ document.querySelector('#admin-json-file')?.addEventListener('change', async (ev
     output.textContent = `Could not load file: ${error.message}`;
   }
 });
+document.querySelector('#admin-print-school-count')?.addEventListener('change', renderAdminPrintNames);
+document.querySelector('#admin-print-kindergarten-count')?.addEventListener('change', renderAdminPrintNames);
+renderAdminPrintNames();
 document.querySelector('#admin-print-blank')?.addEventListener('click', printBlankForm);
 document.querySelector('#admin-load-test-data')?.addEventListener('click', () => {
   loadDevAnswers();

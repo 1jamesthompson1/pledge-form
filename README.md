@@ -28,7 +28,7 @@ npm start              # serve http://localhost:7071
 
 The function uses the Azure Storage emulator: run `npm i -g azurite && azurite --silent` in another terminal before `npm start` (see `functions/README.md`). Point the form at the local backend with `VITE_SUBMIT_URL=http://localhost:7071/api/pledges` in `.env`.
 
-The `.env` file supplies the dev-only runtime config — `VITE_SUBMIT_URL`, `VITE_CONTACT_EMAIL`, `VITE_DEV=true` and `VITE_DRAFT=true` — which the dev server injects as `window.PLEDGE_CONFIG`. With `VITE_DEV=true` a discreet **Load test data** button appears next to the save status; one press fills the whole form with sample answers (same data as the `?dev=1` query string). The submission endpoint always comes from `window.PLEDGE_CONFIG.submitUrl`; there is no query-string override.
+The `.env` file supplies the dev-only runtime config — `VITE_SUBMIT_URL`, `VITE_CONTACT_EMAIL`, `VITE_FORM_URL`, `VITE_DEV=true` and `VITE_DRAFT=true` — which the dev server injects as `window.PLEDGE_CONFIG`. With `VITE_DEV=true` a discreet **Load test data** button appears next to the save status; one press fills the whole form with sample answers (same data as the `?dev=1` query string). The submission endpoint always comes from `window.PLEDGE_CONFIG.submitUrl`; there is no query-string override.
 
 Open the HTTPS URL printed by Vite. The development server uses a local certificate so it behaves more like the HTTPS Squarespace deployment. Your browser may show a certificate warning the first time.
 
@@ -41,7 +41,7 @@ directly into the page — no iframe, and future releases update automatically:
 ```html
 <div id="te-ra-pledge-form"></div>
 <script>
-  window.PLEDGE_CONFIG = { submitUrl: 'https://api.example.org/pledges', contactEmail: 'office@tera.school.nz' };
+  window.PLEDGE_CONFIG = { submitUrl: 'https://api.example.org/pledges', contactEmail: 'office@tera.school.nz', formUrl: 'https://www.tera.school.nz/pledge-form' };
   (async function () {
     const container = document.getElementById('te-ra-pledge-form');
     const res = await fetch('https://cdn.jsdelivr.net/gh/1jamesthompson1/pledge-form@release/pledge-form.html');
@@ -67,13 +67,14 @@ Notes:
 
 This is automatically included in the script code above
 
-No endpoint or contact email is hardcoded. Before the bundled script runs, set both values on `window.PLEDGE_CONFIG`. The contact email is optional — without it the "Questions? Contact the office" footer link is omitted. The `submitUrl` is required for submissions to work. An optional `draft: true` flag shows the "Draft form" warning banner across the top of the form; leave it unset for the live form:
+No endpoint or contact email is hardcoded. Before the bundled script runs, set both values on `window.PLEDGE_CONFIG`. The contact email is optional — without it the "Questions? Contact the office" footer link is omitted. The `submitUrl` is required for submissions to work. An optional `draft: true` flag shows the "Draft form" warning banner across the top of the form; leave it unset for the live form. An optional `formUrl` is used for the "original digital copy" link in the printed hand-fill version:
 
 ```html
 <script>
   window.PLEDGE_CONFIG = {
     submitUrl: 'https://api.example.org/pledges',
-    contactEmail: 'office@tera.school.nz'
+    contactEmail: 'office@tera.school.nz',
+    formUrl: 'https://www.tera.school.nz/pledge-form'
   };
 </script>
 ```
@@ -122,7 +123,7 @@ When a start date is set, a note appears in the pledge section ("These recommend
 
 #### Admin tools
 
-Open the form with `?admin=1` (or `?admin=true`) to show an admin panel at the top of the form. It offers three tools: a mid-year start-link generator (builds a shareable URL with the `startDate` parameter for families joining partway through the year), a JSON loader that repopulates the form from a saved submission payload (`{ form, ... }`) or a flat form object, for reprinting or reprocessing a pledge, and a **Print blank form** button that prints a blank hand-fill version with 3 school children and 2 Kindergarten / Nursery children (one custodial arrangement included), restoring the current answers afterwards. This is a client-side convenience only — `admin=1` is not a security boundary.
+Open the form with `?admin=1` (or `?admin=true`) to show an admin panel at the top of the form. It offers three tools: a mid-year start-link generator (builds a shareable URL with the `startDate` parameter for families joining partway through the year), a JSON loader that repopulates the form from a saved submission payload (`{ form, ... }`) or a flat form object, for reprinting or reprocessing a pledge, and a **Print blank form** setup where you choose the number of school and Kindergarten / Nursery children (and optionally enter their names) before printing a blank hand-fill version (one custodial arrangement included). The names carry through every section of the printed form, the recommended amounts are shown while the auto-calculated totals and payment-plan prices are omitted, every numbered section starts on its own page, medical placeholder text is omitted, and the printed copy includes a note linking back to the digital form. This is a client-side convenience only — `admin=1` is not a security boundary.
 
 ## Tests
 

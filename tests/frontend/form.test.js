@@ -54,6 +54,57 @@ describe('form boot', () => {
   });
 });
 
+describe('blank print setup', () => {
+  it('uses the chosen child counts and names throughout the printed form', async () => {
+    await boot({ search: 'admin=1', config: { formUrl: 'https://example.org/pledge-form' } });
+
+    const setCount = (selector, value) => {
+      const select = document.querySelector(selector);
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    setCount('#admin-print-school-count', '2');
+    setCount('#admin-print-kindergarten-count', '1');
+    document.querySelector('[data-print-name="school1"]').value = 'Aria Thompson';
+    document.querySelector('[data-print-name="school2"]').value = 'Milo Thompson';
+    document.querySelector('[data-print-name="kindergarten1"]').value = 'Ruby Thompson';
+
+    document.querySelector('#admin-print-blank').click();
+
+    expect(document.querySelectorAll('#school-children .child-row')).toHaveLength(2);
+    expect(document.querySelectorAll('#kindergarten-children .child-row')).toHaveLength(1);
+    expect(document.querySelector('[name="school1Name"]').value).toBe('Aria Thompson');
+    expect(document.querySelector('[name="kindergarten1Name"]').value).toBe('Ruby Thompson');
+    expect([...document.querySelectorAll('#medical-info-rows .medical-info-row strong')].map((element) => element.textContent))
+      .toEqual(['Aria Thompson', 'Milo Thompson', 'Ruby Thompson']);
+    expect(document.querySelector('#eotc-school-consent .consent-names').textContent).toBe('Aria Thompson and Milo Thompson');
+    expect(document.body.classList.contains('print-blank')).toBe(true);
+
+    const note = document.querySelector('#print-note');
+    expect(note.hidden).toBe(false);
+    expect(note.querySelector('a').getAttribute('href')).toBe('https://example.org/pledge-form');
+    expect(document.querySelector('#medical-info-rows textarea').hasAttribute('placeholder')).toBe(false);
+    expect(document.querySelector('.return-to-office').textContent).toBe('Please return this form to the school office.');
+    expect(document.querySelector('.print-final footer')).toBeTruthy();
+    expect(document.querySelector('#pledge-form > .sign-card')).toBeNull();
+    expect(document.querySelector('.disbursement-card')).toBeTruthy();
+    expect(document.querySelector('.payment-card')).toBeTruthy();
+    expect(document.querySelector('.pledge-card .disbursement-block')).toBeNull();
+    expect(document.querySelector('.family-type').hidden).toBe(false);
+    expect(document.querySelector('[name="otherParentName"]').closest('label').hidden).toBe(false);
+    expect(document.querySelector('#other-parent-signature').hidden).toBe(false);
+
+    window.dispatchEvent(new Event('afterprint'));
+    expect(document.body.classList.contains('print-blank')).toBe(false);
+    expect(note.hidden).toBe(true);
+    expect(document.querySelector('.print-final')).toBeNull();
+    expect(document.querySelector('.print-subcard')).toBeNull();
+    expect(document.querySelector('#pledge-form > .sign-card')).toBeTruthy();
+    expect(document.querySelector('.shell > footer')).toBeTruthy();
+    expect(document.querySelector('.pledge-card .disbursement-block')).toBeTruthy();
+  });
+});
+
 describe('successful submission', () => {
   it('posts the serialized form with submission metadata and no warning', async () => {
     const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ message: 'Pledge received' }) }));
