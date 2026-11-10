@@ -1,6 +1,6 @@
 {
   "name": "te-ra-pledge-functions",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Azure Functions backend for the Te Ra pledge form",
   "main": "src/functions/*.js",
   "type": "module",
